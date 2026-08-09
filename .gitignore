@@ -1,0 +1,27 @@
+build/
+cmake-build-*/
+Debug/
+Release/
+.settings/
+.metadata/
+.idea/
+*.zip
+*.elf
+*.hex
+*.bin
+*.map
+*.list
+*.su
+*.o
+*.obj
+*.d
+
+# Broken/unused checkout in this workspace; the build uses tinyusb-0.21.0.
+third_party/tinyusb/
+
+# Keep only the TinyUSB source tree required by this firmware.
+third_party/tinyusb-0.21.0/*
+!third_party/tinyusb-0.21.0/LICENSE
+!third_party/tinyusb-0.21.0/README.rst
+!third_party/tinyusb-0.21.0/src/
+!third_party/tinyusb-0.21.0/src/**
