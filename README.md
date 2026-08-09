@@ -1,16 +1,18 @@
 # UF4 STM32F401 DAPLink 固件
 
+一句话：这是运行在 UF4 STM32F401 上的 CMSIS-DAP + 双 CDC 桥接固件，用一个 USB 口完成 G474/F429 目标烧录调试、目标串口随动切换和 ESP32 独立串口/下载控制。
+
 ## 中文
 
 这个固件跑在 UF4 上位控制板的 STM32F401RCT6 上。它夹在 PC 和板上的 G474、F429、ESP32 中间，负责调试、串口和一些板级控制。
 
-PC 这边看到的是一个 USB 复合设备：一个 CMSIS-DAP HID，加一个 CDC 串口。调试软件通过 CMSIS-DAP 走 SWD；上位机如果要换目标，就发 UF4 自定义 vendor command，固件再去切 TMUX1574，把 SWD 接到 G474 或 F429。
+PC 这边看到的是一个 USB 复合设备：一个 CMSIS-DAP HID，加两个 CDC 串口。调试软件通过 CMSIS-DAP 走 SWD；上位机如果要换目标，就发 UF4 自定义 vendor command，固件再去切 TMUX1574，把 SWD 和 Target CDC 一起接到 G474 或 F429。另一个 CDC 固定给 ESP32。
 
 ### 它现在做什么
 
 - USB 上枚举 CMSIS-DAP HID，给 OpenOCD、pyOCD、Keil、STM32CubeProgrammer 这类工具用。
 - 通过 TMUX1574 切 SWD 目标，目前是 G474 和 F429 两路。
-- USB CDC 默认只开 1 路，接 G474 UART。
+- USB CDC 开 2 路：CDC0 跟着当前目标在 G474/F429 UART 之间切换，CDC1 固定接 ESP32 UART。
 - 通过 CMSIS-DAP vendor command 控制目标选择、ESP32 BOOT/EN、LED、版本读取等。
 - 管 STM32F401 自己板上的几根控制脚：LED、ESP32 BOOT/EN、目标 NRST、TMUX SEL/EN#。
 
@@ -43,12 +45,20 @@ EN# = 1          -> 断开目标
 ```text
 VID/PID      : CAFE:401B
 Manufacturer : UF4
-Product      : UF4 F401 CMSIS-DAP CDC
+Product      : UF4 F401 CMSIS-DAP 2CDC
 Serial       : UF4-F401-PLACEHOLDER
-Interfaces   : CMSIS-DAP HID + 1 CDC ACM
+Interfaces   : CMSIS-DAP HID + 2 CDC ACM
 ```
 
-这里没有默认做成 `HID + 3 CDC`。原因很简单：STM32F401 的 USB OTG FS IN endpoint 不宽裕，三路 CDC 再加 HID 很容易把端点用紧，枚举和兼容性都不舒服。现在先稳一点，只暴露 1 路 CDC。以后真要三路串口同时给 PC，可以改成 vendor bulk 复用协议，或者换端点更多的 MCU。
+这两个 CDC 都省略了 CDC notification endpoint，只保留 bulk IN/OUT data endpoint。这样端点账刚好够：
+
+```text
+EP1 IN/OUT -> CMSIS-DAP HID
+EP2 IN/OUT -> CDC0 Target UART
+EP3 IN/OUT -> CDC1 ESP32 UART
+```
+
+这里没有做成 `HID + 3 CDC`。STM32F401 的 `USB_OTG_FS_MAX_IN_ENDPOINTS` 是 4，包含 EP0，所以非 0 号 endpoint 只有 EP1、EP2、EP3。即使省略 CDC notification endpoint，`HID + 3 CDC` 仍然需要 EP4，F401 放不下。
 
 ### 上位机怎么切目标
 
@@ -73,7 +83,7 @@ PC 端不需要看到多个 DAP。它只看到一个 CMSIS-DAP 设备，目标�
 2 = F429
 ```
 
-命令定义在 `DAP/vendor_cmd.h`。上位机切到 `G474` 后，SWD 和默认 CDC 都指向 G474；切到 `F429` 后，SWD 会切到 F429，CDC 仍按当前固件配置走默认串口。
+命令定义在 `DAP/vendor_cmd.h`。上位机切到 `G474` 后，SWD 和 CDC0 都指向 G474；切到 `F429` 后，SWD 和 CDC0 一起切到 F429。CDC1 不跟着目标切换，始终接 ESP32。
 
 ### 常改的配置
 
@@ -88,9 +98,24 @@ PC 端不需要看到多个 DAP。它只看到一个 CMSIS-DAP 设备，目标�
 
 工程底子来自 STM32CubeMX，CMake 也是在 CubeMX 生成的结构上增量加 TinyUSB、CMSIS-DAP 和应用代码。
 
+推荐环境：
+
+- Windows
+- STM32CubeCLT 1.16.x 或更新版本
+- Ninja
+
+如果 `cmake` 已经在 PATH 里，在仓库根目录执行：
+
 ```powershell
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
+```
+
+如果使用 STM32CubeCLT 自带的 CMake，可以直接指定完整路径：
+
+```powershell
+& "D:\Program Files\STMicroelectronics\STM32CubeCLT_1.16.0\CMake\bin\cmake.exe" -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+& "D:\Program Files\STMicroelectronics\STM32CubeCLT_1.16.0\CMake\bin\cmake.exe" --build build --config Release
 ```
 
 输出文件：
@@ -104,17 +129,23 @@ build/DAPLINK.map
 
 烧录 `.bin` 时起始地址用 `0x08000000`。
 
+### 开源协议
+
+本工程按 `GPL-3.0-only` 开源，详见 `LICENSE`。第三方组件仍遵循各自目录下的原始许可证。
+
 ## English
+
+One sentence: this is a CMSIS-DAP + dual-CDC bridge firmware for the UF4 STM32F401 board, using one USB connection for G474/F429 target debugging, target UART switching, and an independent ESP32 UART/download-control path.
 
 This firmware runs on the STM32F401RCT6 on the UF4 upper controller board. It sits between the host PC and the on-board G474, F429, and ESP32, and handles debug, serial, and a few board-control signals.
 
-On the PC side it enumerates as one USB composite device: CMSIS-DAP HID plus one CDC serial port. Debug tools talk SWD through CMSIS-DAP. When the host wants a different target, it sends a UF4 vendor command; the firmware then switches the TMUX1574 so SWD goes to either G474 or F429.
+On the PC side it enumerates as one USB composite device: CMSIS-DAP HID plus two CDC serial ports. Debug tools talk SWD through CMSIS-DAP. When the host wants a different target, it sends a UF4 vendor command; the firmware then switches TMUX1574 so SWD and the Target CDC both go to either G474 or F429. The other CDC stays connected to ESP32.
 
 ### What It Does
 
 - Enumerates a CMSIS-DAP HID interface for OpenOCD, pyOCD, Keil, STM32CubeProgrammer, and similar tools.
 - Switches the target SWD bus through TMUX1574. The current targets are G474 and F429.
-- Exposes one USB CDC port by default, connected to the G474 UART.
+- Exposes two USB CDC ports: CDC0 follows the selected G474/F429 target UART, and CDC1 is fixed to the ESP32 UART.
 - Uses CMSIS-DAP vendor commands for target selection, ESP32 BOOT/EN control, LED control, version query, and board info.
 - Drives board-level signals such as LED, ESP32 BOOT/EN, target NRST, and TMUX SEL/EN#.
 
@@ -147,12 +178,20 @@ Default USB identity:
 ```text
 VID/PID      : CAFE:401B
 Manufacturer : UF4
-Product      : UF4 F401 CMSIS-DAP CDC
+Product      : UF4 F401 CMSIS-DAP 2CDC
 Serial       : UF4-F401-PLACEHOLDER
-Interfaces   : CMSIS-DAP HID + 1 CDC ACM
+Interfaces   : CMSIS-DAP HID + 2 CDC ACM
 ```
 
-The default build does not expose `HID + 3 CDC`. The STM32F401 USB OTG FS peripheral has a tight IN endpoint budget, and adding three CDC ports next to HID makes enumeration and compatibility harder to trust. For three simultaneous UART channels, use a vendor bulk multiplexing protocol or move to an MCU with more USB endpoints.
+Both CDC interfaces omit the CDC notification endpoint and keep only bulk IN/OUT data endpoints. The endpoint layout is:
+
+```text
+EP1 IN/OUT -> CMSIS-DAP HID
+EP2 IN/OUT -> CDC0 Target UART
+EP3 IN/OUT -> CDC1 ESP32 UART
+```
+
+The build does not expose `HID + 3 CDC`. On STM32F401, `USB_OTG_FS_MAX_IN_ENDPOINTS` is 4 including EP0, so only EP1, EP2, and EP3 are available as non-control endpoint numbers. Even without CDC notification endpoints, `HID + 3 CDC` would still need EP4.
 
 ### Host Target Selection
 
@@ -177,7 +216,7 @@ Target IDs:
 2 = F429
 ```
 
-Command IDs are defined in `DAP/vendor_cmd.h`. After selecting `G474`, SWD and the default CDC path point to G474. After selecting `F429`, SWD switches to F429; CDC still follows the current firmware's default UART configuration.
+Command IDs are defined in `DAP/vendor_cmd.h`. After selecting `G474`, SWD and CDC0 point to G474. After selecting `F429`, SWD and CDC0 switch to F429 together. CDC1 does not follow target selection; it always stays on ESP32.
 
 ### Common Config Files
 
@@ -192,9 +231,24 @@ Command IDs are defined in `DAP/vendor_cmd.h`. After selecting `G474`, SWD and t
 
 The project keeps the STM32CubeMX-generated skeleton. TinyUSB, CMSIS-DAP, and the application modules are added incrementally on top of that CMake project.
 
+Recommended environment:
+
+- Windows
+- STM32CubeCLT 1.16.x or newer
+- Ninja
+
+If `cmake` is already in PATH, run these commands from the repository root:
+
 ```powershell
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
+```
+
+If you want to use the CMake bundled with STM32CubeCLT, call it with the full path:
+
+```powershell
+& "D:\Program Files\STMicroelectronics\STM32CubeCLT_1.16.0\CMake\bin\cmake.exe" -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+& "D:\Program Files\STMicroelectronics\STM32CubeCLT_1.16.0\CMake\bin\cmake.exe" --build build --config Release
 ```
 
 Outputs:
@@ -207,3 +261,7 @@ build/DAPLINK.map
 ```
 
 When flashing the raw `.bin`, use base address `0x08000000`.
+
+### License
+
+This project is released under `GPL-3.0-only`. See `LICENSE`. Third-party components keep their original licenses in their own directories.

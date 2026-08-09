@@ -8,7 +8,7 @@ extern "C" {
 #define DAP_PACKET_SIZE                 64u
 #define DAP_PACKET_COUNT                4u
 
-#define CDC_BRIDGE_COUNT                1u
+#define CDC_BRIDGE_COUNT                2u
 #define CDC_USB_RX_CHUNK_SIZE           64u
 #define CDC_USB_TX_CHUNK_SIZE           64u
 

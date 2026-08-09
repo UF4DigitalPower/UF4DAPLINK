@@ -7,7 +7,20 @@
 #define USB_PID                         0x401Bu
 #define USB_BCD                         0x0100u
 
-#define CONFIG_TOTAL_LEN                (TUD_CONFIG_DESC_LEN + TUD_HID_INOUT_DESC_LEN + TUD_CDC_DESC_LEN)
+#define TUD_CDC_NO_NOTIF_DESC_LEN       (8u + 9u + 5u + 5u + 4u + 5u + 9u + 7u + 7u)
+#define CONFIG_TOTAL_LEN                (TUD_CONFIG_DESC_LEN + TUD_HID_INOUT_DESC_LEN + \
+                                         (2u * TUD_CDC_NO_NOTIF_DESC_LEN))
+
+#define TUD_CDC_NO_NOTIF_DESCRIPTOR(_itfnum, _stridx, _epout, _epin, _epsize) \
+    8, TUSB_DESC_INTERFACE_ASSOCIATION, _itfnum, 2, TUSB_CLASS_CDC, CDC_COMM_SUBCLASS_ABSTRACT_CONTROL_MODEL, CDC_COMM_PROTOCOL_NONE, 0, \
+    9, TUSB_DESC_INTERFACE, _itfnum, 0, 0, TUSB_CLASS_CDC, CDC_COMM_SUBCLASS_ABSTRACT_CONTROL_MODEL, CDC_COMM_PROTOCOL_NONE, _stridx, \
+    5, TUSB_DESC_CS_INTERFACE, CDC_FUNC_DESC_HEADER, U16_TO_U8S_LE(0x0120), \
+    5, TUSB_DESC_CS_INTERFACE, CDC_FUNC_DESC_CALL_MANAGEMENT, 0, (uint8_t)((_itfnum) + 1), \
+    4, TUSB_DESC_CS_INTERFACE, CDC_FUNC_DESC_ABSTRACT_CONTROL_MANAGEMENT, 6, \
+    5, TUSB_DESC_CS_INTERFACE, CDC_FUNC_DESC_UNION, _itfnum, (uint8_t)((_itfnum) + 1), \
+    9, TUSB_DESC_INTERFACE, (uint8_t)((_itfnum) + 1), 0, 2, TUSB_CLASS_CDC_DATA, 0, 0, 0, \
+    7, TUSB_DESC_ENDPOINT, _epout, TUSB_XFER_BULK, U16_TO_U8S_LE(_epsize), 0, \
+    7, TUSB_DESC_ENDPOINT, _epin, TUSB_XFER_BULK, U16_TO_U8S_LE(_epsize), 0
 
 enum
 {
@@ -17,7 +30,6 @@ enum
     STRID_SERIAL,
     STRID_CDC0,
     STRID_CDC1,
-    STRID_CDC2,
     STRID_CMSIS_DAP
 };
 
@@ -49,17 +61,21 @@ static uint8_t const s_config_desc[] = {
                              sizeof(s_hid_report_desc), EPNUM_HID_OUT, EPNUM_HID_IN,
                              USB_HID_EP_BUFSIZE, 1),
 
-    TUD_CDC_DESCRIPTOR(ITF_NUM_CDC0, STRID_CDC0, EPNUM_CDC0_NOTIF, 8,
-                       EPNUM_CDC0_OUT, EPNUM_CDC0_IN, USB_CDC_EP_BUFSIZE),
+    TUD_CDC_NO_NOTIF_DESCRIPTOR(ITF_NUM_TARGET_CDC, STRID_CDC0,
+                                EPNUM_TARGET_CDC_OUT, EPNUM_TARGET_CDC_IN,
+                                USB_CDC_EP_BUFSIZE),
+
+    TUD_CDC_NO_NOTIF_DESCRIPTOR(ITF_NUM_ESP32_CDC, STRID_CDC1,
+                                EPNUM_ESP32_CDC_OUT, EPNUM_ESP32_CDC_IN,
+                                USB_CDC_EP_BUFSIZE),
 };
 
 static char const *s_string_desc[] = {
     (const char[]){ 0x09, 0x04 },
     "UF4",
-    "UF4 F401 CMSIS-DAP CDC",
+    "UF4 F401 CMSIS-DAP 2CDC",
     "UF4-F401-PLACEHOLDER",
-    "G474 UART",
-    "F429 UART",
+    "Target UART",
     "ESP32 UART",
     "CMSIS-DAP",
 };
