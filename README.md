@@ -64,6 +64,27 @@ EP3 IN/OUT -> CDC1 ESP32 UART
 
 PC 端不需要看到多个 DAP。它只看到一个 CMSIS-DAP 设备，目标选择走 UF4 自定义命令：
 
+仓库里带了一个 Windows 原生 C 版小工具：
+
+```powershell
+.\tools\uf4-target\uf4-target.exe set f429
+.\tools\uf4-target\uf4-target.exe set g474
+.\tools\uf4-target\uf4-target.exe probe-idcode --target f429 --clock-khz 100 --repeat 3
+```
+
+OpenOCD 烧录 F429 前先切目标：
+
+```powershell
+.\tools\uf4-target\uf4-target.exe set f429
+C:\OpenOCD\bin\openocd.exe -f interface/cmsis-dap.cfg -f target/stm32f4x.cfg -c "adapter speed 1000; program path\to\firmware.hex verify reset exit"
+```
+
+工具源码在 `tools/uf4-target/uf4-target.c`，可用 MinGW-w64 编译：
+
+```powershell
+gcc -O2 -Wall -Wextra -o tools\uf4-target\uf4-target.exe tools\uf4-target\uf4-target.c -lsetupapi -lhid
+```
+
 | 命令 | ID | 请求 | 响应 | 说明 |
 | --- | --- | --- | --- | --- |
 | SET_TARGET | 0x80 | `[0x80, target]` | `[0x80, status]` | 切换目标 |
@@ -196,6 +217,27 @@ The build does not expose `HID + 3 CDC`. On STM32F401, `USB_OTG_FS_MAX_IN_ENDPOI
 ### Host Target Selection
 
 The host does not see multiple DAP devices. It sees one CMSIS-DAP device, and target selection goes through UF4 vendor commands:
+
+The repository includes a native C Windows helper:
+
+```powershell
+.\tools\uf4-target\uf4-target.exe set f429
+.\tools\uf4-target\uf4-target.exe set g474
+.\tools\uf4-target\uf4-target.exe probe-idcode --target f429 --clock-khz 100 --repeat 3
+```
+
+Before flashing F429 with OpenOCD, select the target first:
+
+```powershell
+.\tools\uf4-target\uf4-target.exe set f429
+C:\OpenOCD\bin\openocd.exe -f interface/cmsis-dap.cfg -f target/stm32f4x.cfg -c "adapter speed 1000; program path\to\firmware.hex verify reset exit"
+```
+
+The source is `tools/uf4-target/uf4-target.c`. Build it with MinGW-w64:
+
+```powershell
+gcc -O2 -Wall -Wextra -o tools\uf4-target\uf4-target.exe tools\uf4-target\uf4-target.c -lsetupapi -lhid
+```
 
 | Command | ID | Request | Response | Description |
 | --- | --- | --- | --- | --- |

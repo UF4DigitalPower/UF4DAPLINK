@@ -50,8 +50,11 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, LED_Pin|TMUX_SEL_Pin|TMUX_EN__Pin|NRST_Pin
-                          |SWCLK_Pin|SWDIO_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, LED_Pin|TMUX_SEL_Pin|SWCLK_Pin, GPIO_PIN_RESET);
+
+  /* USER CODE BEGIN MX_GPIO_Init_Output_Level */
+  HAL_GPIO_WritePin(GPIOC, TMUX_EN__Pin|NRST_Pin|SWDIO_Pin, GPIO_PIN_SET);
+  /* USER CODE END MX_GPIO_Init_Output_Level */
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, ESP32BOOT_Pin|ESP32_EN_Pin, GPIO_PIN_RESET);
@@ -80,7 +83,7 @@ void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : NRST_Pin */
   GPIO_InitStruct.Pin = NRST_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(NRST_GPIO_Port, &GPIO_InitStruct);

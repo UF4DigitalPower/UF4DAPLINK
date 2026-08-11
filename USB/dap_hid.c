@@ -2,8 +2,16 @@
 #include "tusb.h"
 #include "../DAP/cmsis_dap.h"
 #include "../Config/memory_config.h"
+#include <string.h>
 
 static uint8_t s_dap_response[DAP_PACKET_SIZE];
+
+static void DAP_HID_PadResponse(uint16_t len)
+{
+    if (len < DAP_PACKET_SIZE) {
+        memset(&s_dap_response[len], 0, DAP_PACKET_SIZE - len);
+    }
+}
 
 static void DAP_HID_SendPending(void)
 {
@@ -14,7 +22,8 @@ static void DAP_HID_SendPending(void)
     }
 
     if (CMSIS_DAP_GetPendingResponse(s_dap_response, &len, sizeof(s_dap_response))) {
-        (void)tud_hid_report(0u, s_dap_response, len);
+        DAP_HID_PadResponse(len);
+        (void)tud_hid_report(0u, s_dap_response, DAP_PACKET_SIZE);
     }
 }
 
@@ -50,7 +59,8 @@ void tud_hid_set_report_cb(uint8_t instance,
 
     len = CMSIS_DAP_ExecuteCommand(buffer, bufsize, s_dap_response, sizeof(s_dap_response));
     if ((len > 0u) && tud_hid_ready()) {
-        (void)tud_hid_report(0u, s_dap_response, len);
+        DAP_HID_PadResponse(len);
+        (void)tud_hid_report(0u, s_dap_response, DAP_PACKET_SIZE);
     }
 }
 

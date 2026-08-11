@@ -60,9 +60,9 @@ void Target_Reset(void)
         return;
     }
 
-    Board_WritePin(TARGET_NRST_GPIO, TARGET_NRST_PIN, TARGET_NRST_ACTIVE_LEVEL);
+    PIN_nRESET_OUT(0U);
     Board_DelayUs(TARGET_RESET_PULSE_US);
-    Board_WritePin(TARGET_NRST_GPIO, TARGET_NRST_PIN, TARGET_NRST_INACTIVE_LEVEL);
+    PIN_nRESET_OUT(1U);
 }
 
 bool Target_Detect(void)
