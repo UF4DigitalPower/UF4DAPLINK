@@ -14,6 +14,8 @@
 
 #define CMD_SET_TARGET              0x80
 #define CMD_GET_TARGET              0x81
+#define CMD_ESP32_BOOT              0x82
+#define CMD_ESP32_RESET             0x83
 #define CMD_DAP_CONNECT             0x02
 #define CMD_DAP_TRANSFER_CONFIGURE  0x04
 #define CMD_DAP_TRANSFER            0x05
@@ -38,6 +40,8 @@ static void usage(void)
     puts("uf4-target list");
     puts("uf4-target get");
     puts("uf4-target set <none|g474|f429|0|1|2>");
+    puts("uf4-target esp32-boot");
+    puts("uf4-target esp32-reset");
     puts("uf4-target pins [--swclk 0|1] [--swdio 0|1] [--nrst 0|1]");
     puts("uf4-target probe-idcode [--target f429|g474] [--clock-khz N] [--repeat N]");
 }
@@ -315,6 +319,19 @@ static int cmd_set(uf4_hid_t *dev, uint8_t target)
     return actual == target;
 }
 
+static int cmd_simple_status(uf4_hid_t *dev, uint8_t cmd, const char *ok_text)
+{
+    uint8_t req[] = { cmd };
+    uint8_t rsp[64];
+    int n = send_packet(dev, req, sizeof(req), rsp, sizeof(rsp), 1000);
+    if (n < 2 || rsp[1] != 0) {
+        fprintf(stderr, "ERROR: command 0x%02X failed\n", cmd);
+        return 0;
+    }
+    puts(ok_text);
+    return 1;
+}
+
 static int dap_connect_swd(uf4_hid_t *dev)
 {
     uint8_t req[] = { CMD_DAP_CONNECT, 1 };
@@ -479,6 +496,10 @@ int main(int argc, char **argv)
         } else {
             ok = cmd_set(&dev, target);
         }
+    } else if (strcmp(argv[1], "esp32-boot") == 0 || strcmp(argv[1], "boot-esp32") == 0) {
+        ok = cmd_simple_status(&dev, CMD_ESP32_BOOT, "ESP32 entered download mode");
+    } else if (strcmp(argv[1], "esp32-reset") == 0 || strcmp(argv[1], "reset-esp32") == 0) {
+        ok = cmd_simple_status(&dev, CMD_ESP32_RESET, "ESP32 reset");
     } else if (strcmp(argv[1], "pins") == 0) {
         ok = cmd_pins(&dev, argc, argv);
     } else if (strcmp(argv[1], "probe-idcode") == 0) {

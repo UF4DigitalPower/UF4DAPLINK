@@ -9,6 +9,8 @@
 .\uf4-target.exe get
 .\uf4-target.exe set f429
 .\uf4-target.exe set g474
+.\uf4-target.exe esp32-boot
+.\uf4-target.exe esp32-reset
 .\uf4-target.exe pins --swclk 1 --swdio 1 --nrst 1
 .\uf4-target.exe probe-idcode --target f429 --clock-khz 100 --repeat 3
 ```
@@ -26,6 +28,8 @@ C:\OpenOCD\bin\openocd.exe -f interface/cmsis-dap.cfg -f target/stm32f4x.cfg -c 
 - `get`: read the currently selected target.
 - `set f429`: route SWD and target UART to F429.
 - `set g474`: route SWD and target UART to G474.
+- `esp32-boot`: pull ESP32 BOOT low and reset it into download mode.
+- `esp32-reset`: reset ESP32 back to normal run mode.
 - `pins`: manually read or drive SWCLK, SWDIO, and NRST for hardware checks.
 - `probe-idcode`: run raw SWD initialization and read the target DP IDCODE.
 
@@ -51,3 +55,15 @@ C:\OpenOCD\bin\openocd.exe -f interface/cmsis-dap.cfg -f target/stm32f4x.cfg -c 
 ```
 
 这个目录只保留 C 语言单文件版本，不再使用 Python 冻结包。
+
+ESP32 进入下载模式：
+
+```powershell
+.\tools\uf4-target\uf4-target.exe esp32-boot
+```
+
+ESP32 复位运行：
+
+```powershell
+.\tools\uf4-target\uf4-target.exe esp32-reset
+```

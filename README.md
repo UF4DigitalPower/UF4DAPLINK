@@ -69,6 +69,8 @@ PC 端不需要看到多个 DAP。它只看到一个 CMSIS-DAP 设备，目标�
 ```powershell
 .\tools\uf4-target\uf4-target.exe set f429
 .\tools\uf4-target\uf4-target.exe set g474
+.\tools\uf4-target\uf4-target.exe esp32-boot
+.\tools\uf4-target\uf4-target.exe esp32-reset
 .\tools\uf4-target\uf4-target.exe probe-idcode --target f429 --clock-khz 100 --repeat 3
 ```
 
@@ -223,6 +225,8 @@ The repository includes a native C Windows helper:
 ```powershell
 .\tools\uf4-target\uf4-target.exe set f429
 .\tools\uf4-target\uf4-target.exe set g474
+.\tools\uf4-target\uf4-target.exe esp32-boot
+.\tools\uf4-target\uf4-target.exe esp32-reset
 .\tools\uf4-target\uf4-target.exe probe-idcode --target f429 --clock-khz 100 --repeat 3
 ```
 
