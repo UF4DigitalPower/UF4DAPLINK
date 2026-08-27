@@ -16,6 +16,9 @@ extern "C" {
 #define UF4_CMD_SET_LED                 0x85u
 #define UF4_CMD_GET_VERSION             0x86u
 #define UF4_CMD_GET_BOARD_INFO          0x87u
+#define UF4_CMD_GET_UART_STATS          0x88u
+#define UF4_CMD_CLEAR_UART_STATS        0x89u
+#define UF4_CMD_GET_UART_RX_SAMPLE      0x8Au
 
 #define UF4_STATUS_OK                   0x00u
 #define UF4_STATUS_ERROR                0xFFu

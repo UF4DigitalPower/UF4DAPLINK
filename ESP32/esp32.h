@@ -12,7 +12,8 @@ void ESP32_Reset(void);
 void ESP32_EnterBootloader(void);
 void ESP32_ExitBootloader(void);
 void ESP32_SetEN(bool level);
-void ESP32_SetIO0(bool level);
+void ESP32_SetIO9(bool level);
+void ESP32_ApplySerialControl(bool dtr, bool rts);
 void ESP32_Task(void);
 
 #ifdef __cplusplus

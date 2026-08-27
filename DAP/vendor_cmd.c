@@ -4,14 +4,27 @@
 #include "../BSP/board_config.h"
 #include "../BSP/led.h"
 #include "../ESP32/esp32.h"
+#include "../UART/uart_manager.h"
 #include "../Config/memory_config.h"
+
+static void VendorCmd_WriteU32(uint8_t *response, uint16_t *offset, uint32_t value)
+{
+    response[(*offset)++] = (uint8_t)(value & 0xFFu);
+    response[(*offset)++] = (uint8_t)((value >> 8u) & 0xFFu);
+    response[(*offset)++] = (uint8_t)((value >> 16u) & 0xFFu);
+    response[(*offset)++] = (uint8_t)((value >> 24u) & 0xFFu);
+}
 
 static uint16_t VendorCmd_RequestLength(uint8_t cmd, uint16_t packet_len)
 {
     switch (cmd) {
     case UF4_CMD_SET_TARGET:
     case UF4_CMD_SET_LED:
+    case UF4_CMD_GET_UART_STATS:
+    case UF4_CMD_CLEAR_UART_STATS:
         return 2u;
+    case UF4_CMD_GET_UART_RX_SAMPLE:
+        return 4u;
     case UF4_CMD_GET_TARGET:
     case UF4_CMD_ESP32_BOOT:
     case UF4_CMD_ESP32_RESET:
@@ -56,10 +69,12 @@ uint16_t VendorCmd_Process(const uint8_t *request, uint16_t request_len, uint8_t
         return 3u;
 
     case UF4_CMD_ESP32_BOOT:
+        (void)UART_Manager_ResetBridge(UART_BRIDGE_ESP32);
         ESP32_EnterBootloader();
         return 2u;
 
     case UF4_CMD_ESP32_RESET:
+        (void)UART_Manager_ResetBridge(UART_BRIDGE_ESP32);
         ESP32_Reset();
         return 2u;
 
@@ -100,6 +115,55 @@ uint16_t VendorCmd_Process(const uint8_t *request, uint16_t request_len, uint8_t
         }
 
         return i;
+    }
+
+    case UF4_CMD_GET_UART_STATS: {
+        uart_bridge_stats_t stats;
+        uint16_t offset = 3u;
+
+        if ((request_len < 2u) || (response_max < 35u) ||
+            !UART_Manager_GetStats((uart_bridge_id_t)request[1], &stats)) {
+            response[1] = UF4_STATUS_ERROR;
+            return 2u;
+        }
+
+        response[2] = request[1];
+        VendorCmd_WriteU32(response, &offset, stats.usb_to_uart_bytes);
+        VendorCmd_WriteU32(response, &offset, stats.usb_to_uart_dropped);
+        VendorCmd_WriteU32(response, &offset, stats.uart_tx_bytes);
+        VendorCmd_WriteU32(response, &offset, stats.uart_tx_errors);
+        VendorCmd_WriteU32(response, &offset, stats.uart_rx_bytes);
+        VendorCmd_WriteU32(response, &offset, stats.uart_rx_dropped);
+        VendorCmd_WriteU32(response, &offset, stats.usb_from_uart_bytes);
+        VendorCmd_WriteU32(response, &offset, stats.uart_rx_start_errors);
+        return offset;
+    }
+
+    case UF4_CMD_CLEAR_UART_STATS:
+        if ((request_len < 2u) || !UART_Manager_ClearStats((uart_bridge_id_t)request[1])) {
+            response[1] = UF4_STATUS_ERROR;
+        }
+        return 2u;
+
+    case UF4_CMD_GET_UART_RX_SAMPLE: {
+        uint16_t offset;
+        size_t len;
+
+        if ((request_len < 4u) || (response_max < 7u)) {
+            response[1] = UF4_STATUS_ERROR;
+            return 2u;
+        }
+
+        offset = (uint16_t)request[2] | ((uint16_t)request[3] << 8u);
+        response[2] = request[1];
+        response[3] = request[2];
+        response[4] = request[3];
+        len = UART_Manager_GetRxSample((uart_bridge_id_t)request[1],
+                                       offset,
+                                       &response[6],
+                                       (size_t)(response_max - 6u));
+        response[5] = (uint8_t)len;
+        return (uint16_t)(6u + len);
     }
 
     default:

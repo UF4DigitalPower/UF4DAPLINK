@@ -24,6 +24,7 @@ extern "C" {
 #define PIN_PA1                         1u
 #define PIN_PA2                         2u
 #define PIN_PA3                         3u
+#define PIN_PA4                         4u
 #define PIN_PA9                         9u
 #define PIN_PA10                        10u
 #define PIN_PA11                        11u
@@ -31,6 +32,10 @@ extern "C" {
 #define PIN_PA13                        13u
 #define PIN_PA14                        14u
 #define PIN_PC0                         0u
+#define PIN_PC1                         1u
+#define PIN_PC2                         2u
+#define PIN_PC3                         3u
+#define PIN_PC4                         4u
 #define PIN_PC6                         6u
 #define PIN_PC7                         7u
 #define PIN_PC8                         8u
@@ -123,32 +128,37 @@ extern "C" {
 #define ESP32_UART_RX_PIN               GPIO_PIN_3
 #define ESP32_UART_GPIO_AF              GPIO_AF7_USART2
 
-#define PIN_ESP32_EN                    PIN_PA1
-#define PIN_ESP32_IO0                   PIN_PA0
-#define ESP32_EN_GPIO                   GPIOA
-#define ESP32_EN_PIN                    GPIO_PIN_1
-#define ESP32_IO0_GPIO                  GPIOA
-#define ESP32_IO0_PIN                   GPIO_PIN_0
+#define PIN_ESP32_IO8                   PIN_PC1
+#define PIN_ESP32_IO9                   PIN_PC2
+#define PIN_ESP32_EN                    PIN_PC3
+#define ESP32_IO8_GPIO                  GPIOC
+#define ESP32_IO8_PIN                   GPIO_PIN_1
+#define ESP32_IO9_GPIO                  GPIOC
+#define ESP32_IO9_PIN                   GPIO_PIN_2
+#define ESP32_EN_GPIO                   GPIOC
+#define ESP32_EN_PIN                    GPIO_PIN_3
 #define ESP32_EN_ACTIVE_LEVEL           GPIO_PIN_SET
 #define ESP32_EN_INACTIVE_LEVEL         GPIO_PIN_RESET
-#define ESP32_IO0_BOOT_LEVEL            GPIO_PIN_RESET
-#define ESP32_IO0_RUN_LEVEL             GPIO_PIN_SET
-#define ESP32_RESET_DELAY_MS            50u
-#define ESP32_BOOT_DELAY_MS             50u
+#define ESP32_IO8_BOOT_LEVEL            GPIO_PIN_SET
+#define ESP32_IO8_RUN_LEVEL             GPIO_PIN_SET
+#define ESP32_IO9_BOOT_LEVEL            GPIO_PIN_RESET
+#define ESP32_IO9_RUN_LEVEL             GPIO_PIN_SET
+#define ESP32_RESET_DELAY_MS            200u
+#define ESP32_BOOT_DELAY_MS             200u
 
-#define PIN_STATUS_LED                  PIN_PC0
+#define PIN_STATUS_LED                  PIN_PC4
 #define STATUS_LED_GPIO                 GPIOC
-#define STATUS_LED_PIN                  GPIO_PIN_0
+#define STATUS_LED_PIN                  GPIO_PIN_4
 #define LED_ACTIVE_LEVEL                GPIO_PIN_SET
 #define LED_INACTIVE_LEVEL              GPIO_PIN_RESET
 
-#define PIN_VTREF_ADC                   PIN_PLACEHOLDER
-#define VTREF_ADC_CHANNEL               ADC_CHANNEL_PLACEHOLDER
-#define VTREF_R_TOP                     0u
-#define VTREF_R_BOTTOM                  0u
-#define ADC_VREF_MV                     PLACEHOLDER_MV
+#define PIN_VTREF_ADC                   PIN_PA4
+#define VTREF_ADC_CHANNEL               ADC_CHANNEL_4
+#define VTREF_R_TOP                     10000u
+#define VTREF_R_BOTTOM                  10000u
+#define ADC_VREF_MV                     3300u
 #define ADC_MAX_COUNTS                  4095u
-#define VTREF_PRESENT_THRESHOLD_MV      PLACEHOLDER_MV
+#define VTREF_PRESENT_THRESHOLD_MV      500u
 
 #define UF4_FW_VERSION_MAJOR            0u
 #define UF4_FW_VERSION_MINOR            1u
