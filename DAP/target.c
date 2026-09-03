@@ -5,11 +5,11 @@
 #include "../BSP/board_config.h"
 #include "../BSP/tmux.h"
 
-static target_t s_current_target = TARGET_NONE;
+static target_t s_current_target = TARGET_F429;
 
 static bool Target_IsValid(target_t target)
 {
-    return (target == TARGET_NONE) || (target == TARGET_G474) || (target == TARGET_F429);
+    return (target == TARGET_G474) || (target == TARGET_F429);
 }
 
 static void Target_SafeLines(void)
@@ -19,9 +19,9 @@ static void Target_SafeLines(void)
 
 void Target_Init(void)
 {
-    s_current_target = TARGET_NONE;
+    s_current_target = TARGET_F429;
     Target_SafeLines();
-    (void)TMUX_SelectNone();
+    (void)TMUX_SelectF429();
 }
 
 bool Target_Select(target_t target)
@@ -38,7 +38,6 @@ bool Target_Select(target_t target)
     (void)TMUX_SelectNone();
 
     if (!TMUX_Select(target)) {
-        s_current_target = TARGET_NONE;
         return false;
     }
 
@@ -56,13 +55,18 @@ target_t Target_Get(void)
 
 void Target_Reset(void)
 {
-    if (s_current_target == TARGET_NONE) {
-        return;
-    }
-
     PIN_nRESET_OUT(0U);
     Board_DelayUs(TARGET_RESET_PULSE_US);
     PIN_nRESET_OUT(1U);
+}
+
+void Target_ResetAllAtStartup(void)
+{
+    (void)Target_Select(TARGET_G474);
+    Target_Reset();
+
+    (void)Target_Select(TARGET_F429);
+    Target_Reset();
 }
 
 bool Target_Detect(void)
@@ -73,10 +77,6 @@ bool Target_Detect(void)
 uint32_t Target_ReadIDCODE(void)
 {
     uint32_t idcode = 0u;
-
-    if (s_current_target == TARGET_NONE) {
-        return 0u;
-    }
 
     if (SWD_Transfer(DAP_TRANSFER_RnW, &idcode) != DAP_TRANSFER_OK) {
         return 0u;

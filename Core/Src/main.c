@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "dma.h"
 #include "usart.h"
 #include "usb_otg.h"
@@ -102,9 +103,12 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USART6_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
   Board_Init();
   DAP_Init();
+  HAL_Delay(1000);
+  Target_ResetAllAtStartup();
   CDC_Bridge_Init();
   DAP_HID_Init();
   tusb_init();
@@ -119,11 +123,11 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
     tud_task();
+    UART_Manager_Task();
     CDC_Task();
     DAP_Task();
     Target_Task();
     ESP32_Task();
-    UART_Manager_Task();
     LED_Task();
   }
   /* USER CODE END 3 */

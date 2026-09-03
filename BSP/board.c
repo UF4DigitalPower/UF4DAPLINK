@@ -12,6 +12,7 @@ void Board_Init(void)
     TMUX_Init();
     ESP32_Init();
     UART_Manager_Init();
+    Board_ADC_Init();
 }
 
 uint32_t Board_Millis(void)
@@ -38,7 +39,7 @@ void Board_DelayUs(uint32_t us)
 
 uint16_t Board_ReadVTREF_mV(void)
 {
-    return 0u;
+    return Board_ADC_ReadVTREF_mV();
 }
 
 void Board_WritePin(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState level)

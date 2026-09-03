@@ -11,11 +11,17 @@
 #define DEFAULT_VID 0xCAFE
 #define DEFAULT_PID 0x401B
 #define MAX_PACKET  1024
+#define ESP32_BOOT_SETTLE_MS  600
+#define ESP32_RESET_SETTLE_MS 500
 
 #define CMD_SET_TARGET              0x80
 #define CMD_GET_TARGET              0x81
 #define CMD_ESP32_BOOT              0x82
 #define CMD_ESP32_RESET             0x83
+#define CMD_GET_VTREF               0x84
+#define CMD_GET_UART_STATS          0x88
+#define CMD_CLEAR_UART_STATS        0x89
+#define CMD_GET_UART_RX_SAMPLE      0x8A
 #define CMD_DAP_CONNECT             0x02
 #define CMD_DAP_TRANSFER_CONFIGURE  0x04
 #define CMD_DAP_TRANSFER            0x05
@@ -28,6 +34,10 @@
 #define PIN_SWDIO   (1u << 1)
 #define PIN_NRESET  (1u << 7)
 
+#define UART_ID_G474   0
+#define UART_ID_F429   1
+#define UART_ID_ESP32  2
+
 typedef struct {
     HANDLE handle;
     DWORD input_len;
@@ -39,9 +49,14 @@ static void usage(void)
 {
     puts("uf4-target list");
     puts("uf4-target get");
-    puts("uf4-target set <none|g474|f429|0|1|2>");
+    puts("uf4-target set <g474|f429|1|2>");
     puts("uf4-target esp32-boot");
     puts("uf4-target esp32-reset");
+    puts("uf4-target vtref");
+    puts("uf4-target adc");
+    puts("uf4-target uart-stats <g474|f429|esp32>");
+    puts("uf4-target uart-clear-stats <g474|f429|esp32>");
+    puts("uf4-target uart-rx-dump <g474|f429|esp32>");
     puts("uf4-target pins [--swclk 0|1] [--swdio 0|1] [--nrst 0|1]");
     puts("uf4-target probe-idcode [--target f429|g474] [--clock-khz N] [--repeat N]");
 }
@@ -49,9 +64,6 @@ static void usage(void)
 static int parse_target(const char *s, uint8_t *target)
 {
     if (!s || !target) return 0;
-    if (_stricmp(s, "none") == 0 || _stricmp(s, "off") == 0 || strcmp(s, "0") == 0) {
-        *target = 0; return 1;
-    }
     if (_stricmp(s, "g474") == 0 || _stricmp(s, "stm32g474") == 0 || strcmp(s, "1") == 0) {
         *target = 1; return 1;
     }
@@ -64,9 +76,33 @@ static int parse_target(const char *s, uint8_t *target)
 static const char *target_name(uint8_t target)
 {
     switch (target) {
-    case 0: return "none";
     case 1: return "G474";
     case 2: return "F429";
+    default: return "unknown";
+    }
+}
+
+static int parse_uart_id(const char *s, uint8_t *id)
+{
+    if (!s || !id) return 0;
+    if (_stricmp(s, "g474") == 0 || _stricmp(s, "target-g474") == 0 || strcmp(s, "0") == 0) {
+        *id = UART_ID_G474; return 1;
+    }
+    if (_stricmp(s, "f429") == 0 || _stricmp(s, "target-f429") == 0 || strcmp(s, "1") == 0) {
+        *id = UART_ID_F429; return 1;
+    }
+    if (_stricmp(s, "esp32") == 0 || _stricmp(s, "esp32c6") == 0 || strcmp(s, "2") == 0) {
+        *id = UART_ID_ESP32; return 1;
+    }
+    return 0;
+}
+
+static const char *uart_name(uint8_t id)
+{
+    switch (id) {
+    case UART_ID_G474: return "G474";
+    case UART_ID_F429: return "F429";
+    case UART_ID_ESP32: return "ESP32";
     default: return "unknown";
     }
 }
@@ -77,6 +113,14 @@ static int parse_bit(const char *s, uint8_t *bit)
     if (strcmp(s, "0") == 0) { *bit = 0; return 1; }
     if (strcmp(s, "1") == 0) { *bit = 1; return 1; }
     return 0;
+}
+
+static uint32_t read_le32(const uint8_t *p)
+{
+    return (uint32_t)p[0] |
+           ((uint32_t)p[1] << 8) |
+           ((uint32_t)p[2] << 16) |
+           ((uint32_t)p[3] << 24);
 }
 
 static void print_last_error(const char *what)
@@ -332,6 +376,144 @@ static int cmd_simple_status(uf4_hid_t *dev, uint8_t cmd, const char *ok_text)
     return 1;
 }
 
+static int cmd_esp32_boot(uf4_hid_t *dev)
+{
+    if (!cmd_simple_status(dev, CMD_ESP32_BOOT, "ESP32 entered download mode")) {
+        return 0;
+    }
+
+    Sleep(ESP32_BOOT_SETTLE_MS);
+    return 1;
+}
+
+static int cmd_esp32_reset(uf4_hid_t *dev)
+{
+    if (!cmd_simple_status(dev, CMD_ESP32_RESET, "ESP32 reset")) {
+        return 0;
+    }
+
+    Sleep(ESP32_RESET_SETTLE_MS);
+    return 1;
+}
+
+static int cmd_vtref(uf4_hid_t *dev)
+{
+    uint8_t req[] = { CMD_GET_VTREF };
+    uint8_t rsp[64];
+    int n = send_packet(dev, req, sizeof(req), rsp, sizeof(rsp), 1000);
+    uint16_t mv;
+
+    if ((n < 4) || (rsp[1] != 0)) {
+        fprintf(stderr, "ERROR: GET_VTREF failed\n");
+        return 0;
+    }
+
+    mv = (uint16_t)rsp[2] | ((uint16_t)rsp[3] << 8);
+    printf("VTREF=%u mV\n", (unsigned)mv);
+    return 1;
+}
+
+static int cmd_uart_stats(uf4_hid_t *dev, uint8_t id)
+{
+    uint8_t req[] = { CMD_GET_UART_STATS, id };
+    uint8_t rsp[64];
+    int n = send_packet(dev, req, sizeof(req), rsp, sizeof(rsp), 1000);
+
+    if ((n < 35) || (rsp[1] != 0) || (rsp[2] != id)) {
+        fprintf(stderr, "ERROR: GET_UART_STATS failed\n");
+        return 0;
+    }
+
+    printf("%s UART stats:\n", uart_name(id));
+    printf("  usb_to_uart_bytes     = %lu\n", (unsigned long)read_le32(&rsp[3]));
+    printf("  usb_to_uart_dropped   = %lu\n", (unsigned long)read_le32(&rsp[7]));
+    printf("  uart_tx_bytes         = %lu\n", (unsigned long)read_le32(&rsp[11]));
+    printf("  uart_tx_errors        = %lu\n", (unsigned long)read_le32(&rsp[15]));
+    printf("  uart_rx_bytes         = %lu\n", (unsigned long)read_le32(&rsp[19]));
+    printf("  uart_rx_dropped       = %lu\n", (unsigned long)read_le32(&rsp[23]));
+    printf("  usb_from_uart_bytes   = %lu\n", (unsigned long)read_le32(&rsp[27]));
+    printf("  uart_rx_start_errors  = %lu\n", (unsigned long)read_le32(&rsp[31]));
+    return 1;
+}
+
+static int cmd_uart_clear_stats(uf4_hid_t *dev, uint8_t id)
+{
+    uint8_t req[] = { CMD_CLEAR_UART_STATS, id };
+    uint8_t rsp[64];
+    int n = send_packet(dev, req, sizeof(req), rsp, sizeof(rsp), 1000);
+
+    if ((n < 2) || (rsp[1] != 0)) {
+        fprintf(stderr, "ERROR: CLEAR_UART_STATS failed\n");
+        return 0;
+    }
+
+    printf("%s UART stats cleared\n", uart_name(id));
+    return 1;
+}
+
+static void print_dump_line(uint16_t offset, const uint8_t *data, size_t len)
+{
+    printf("%04X  ", offset);
+    for (size_t i = 0u; i < 16u; i++) {
+        if (i < len) {
+            printf("%02X ", data[i]);
+        } else {
+            printf("   ");
+        }
+    }
+    printf(" ");
+    for (size_t i = 0u; i < len; i++) {
+        uint8_t c = data[i];
+        putchar((c >= 32u && c <= 126u) ? c : '.');
+    }
+    putchar('\n');
+}
+
+static int cmd_uart_rx_dump(uf4_hid_t *dev, uint8_t id)
+{
+    uint8_t sample[256];
+    size_t total = 0u;
+
+    while (total < sizeof(sample)) {
+        uint8_t req[] = {
+            CMD_GET_UART_RX_SAMPLE,
+            id,
+            (uint8_t)(total & 0xFFu),
+            (uint8_t)((total >> 8u) & 0xFFu)
+        };
+        uint8_t rsp[64];
+        int n = send_packet(dev, req, sizeof(req), rsp, sizeof(rsp), 1000);
+        uint8_t count;
+
+        if ((n < 6) || (rsp[1] != 0) || (rsp[2] != id)) {
+            fprintf(stderr, "ERROR: GET_UART_RX_SAMPLE failed\n");
+            return 0;
+        }
+
+        count = rsp[5];
+        if ((count == 0u) || (n < (int)(6u + count))) {
+            break;
+        }
+
+        if ((total + count) > sizeof(sample)) {
+            count = (uint8_t)(sizeof(sample) - total);
+        }
+        memcpy(&sample[total], &rsp[6], count);
+        total += count;
+    }
+
+    printf("%s UART RX sample: %lu bytes\n", uart_name(id), (unsigned long)total);
+    for (size_t off = 0u; off < total; off += 16u) {
+        size_t line_len = total - off;
+        if (line_len > 16u) {
+            line_len = 16u;
+        }
+        print_dump_line((uint16_t)off, &sample[off], line_len);
+    }
+
+    return 1;
+}
+
 static int dap_connect_swd(uf4_hid_t *dev)
 {
     uint8_t req[] = { CMD_DAP_CONNECT, 1 };
@@ -470,9 +652,12 @@ int main(int argc, char **argv)
     uf4_hid_t dev;
     int ok = 0;
 
-    if (argc < 2) {
+    if ((argc < 2) ||
+        (strcmp(argv[1], "--help") == 0) ||
+        (strcmp(argv[1], "-h") == 0) ||
+        (strcmp(argv[1], "help") == 0)) {
         usage();
-        return 2;
+        return (argc < 2) ? 2 : 0;
     }
 
     if (strcmp(argv[1], "list") == 0) {
@@ -491,15 +676,44 @@ int main(int argc, char **argv)
     } else if (strcmp(argv[1], "set") == 0) {
         uint8_t target;
         if (argc < 3 || !parse_target(argv[2], &target)) {
-            fprintf(stderr, "ERROR: expected target none/g474/f429\n");
+            fprintf(stderr, "ERROR: expected target g474/f429\n");
             ok = 0;
         } else {
             ok = cmd_set(&dev, target);
         }
     } else if (strcmp(argv[1], "esp32-boot") == 0 || strcmp(argv[1], "boot-esp32") == 0) {
-        ok = cmd_simple_status(&dev, CMD_ESP32_BOOT, "ESP32 entered download mode");
+        ok = cmd_esp32_boot(&dev);
     } else if (strcmp(argv[1], "esp32-reset") == 0 || strcmp(argv[1], "reset-esp32") == 0) {
-        ok = cmd_simple_status(&dev, CMD_ESP32_RESET, "ESP32 reset");
+        ok = cmd_esp32_reset(&dev);
+    } else if (strcmp(argv[1], "vtref") == 0 || strcmp(argv[1], "adc") == 0) {
+        ok = cmd_vtref(&dev);
+    } else if (strcmp(argv[1], "uart-stats") == 0 || strcmp(argv[1], "esp32-stats") == 0) {
+        uint8_t id = UART_ID_ESP32;
+        if ((strcmp(argv[1], "uart-stats") == 0) &&
+            (argc < 3 || !parse_uart_id(argv[2], &id))) {
+            fprintf(stderr, "ERROR: expected UART g474/f429/esp32\n");
+            ok = 0;
+        } else {
+            ok = cmd_uart_stats(&dev, id);
+        }
+    } else if (strcmp(argv[1], "uart-clear-stats") == 0 || strcmp(argv[1], "esp32-clear-stats") == 0) {
+        uint8_t id = UART_ID_ESP32;
+        if ((strcmp(argv[1], "uart-clear-stats") == 0) &&
+            (argc < 3 || !parse_uart_id(argv[2], &id))) {
+            fprintf(stderr, "ERROR: expected UART g474/f429/esp32\n");
+            ok = 0;
+        } else {
+            ok = cmd_uart_clear_stats(&dev, id);
+        }
+    } else if (strcmp(argv[1], "uart-rx-dump") == 0 || strcmp(argv[1], "esp32-rx-dump") == 0) {
+        uint8_t id = UART_ID_ESP32;
+        if ((strcmp(argv[1], "uart-rx-dump") == 0) &&
+            (argc < 3 || !parse_uart_id(argv[2], &id))) {
+            fprintf(stderr, "ERROR: expected UART g474/f429/esp32\n");
+            ok = 0;
+        } else {
+            ok = cmd_uart_rx_dump(&dev, id);
+        }
     } else if (strcmp(argv[1], "pins") == 0) {
         ok = cmd_pins(&dev, argc, argv);
     } else if (strcmp(argv[1], "probe-idcode") == 0) {

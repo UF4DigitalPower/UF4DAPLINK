@@ -44,12 +44,8 @@ void ESP32_SetIO9(bool level)
 
 void ESP32_ApplySerialControl(bool dtr, bool rts)
 {
-    if (s_state != ESP32_SM_IDLE) {
-        return;
-    }
-
-    ESP32_SetIO9(!dtr);
-    ESP32_SetEN(!rts);
+    (void)dtr;
+    (void)rts;
 }
 
 void ESP32_Reset(void)

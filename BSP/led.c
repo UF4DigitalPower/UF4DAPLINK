@@ -40,6 +40,9 @@ void LED_SetState(led_state_t state)
 
     if (state == LED_OFF) {
         LED_Off();
+    } else {
+        /* Show the new state immediately; LED_Task() controls subsequent blinking. */
+        LED_On();
     }
 }
 

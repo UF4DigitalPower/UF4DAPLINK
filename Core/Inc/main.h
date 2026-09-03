@@ -57,30 +57,20 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define SWO_Pin GPIO_PIN_13
-#define SWO_GPIO_Port GPIOC
-#define LED_Pin GPIO_PIN_0
+#define ESP32_IO8_Pin GPIO_PIN_1
+#define ESP32_IO8_GPIO_Port GPIOC
+#define ESP32_IO9_Pin GPIO_PIN_2
+#define ESP32_IO9_GPIO_Port GPIOC
+#define ESP32_EN_Pin GPIO_PIN_3
+#define ESP32_EN_GPIO_Port GPIOC
+#define VBUS_ADC_Pin GPIO_PIN_4
+#define VBUS_ADC_GPIO_Port GPIOA
+#define LED_Pin GPIO_PIN_4
 #define LED_GPIO_Port GPIOC
-#define ESP32BOOT_Pin GPIO_PIN_0
-#define ESP32BOOT_GPIO_Port GPIOA
-#define ESP32_EN_Pin GPIO_PIN_1
-#define ESP32_EN_GPIO_Port GPIOA
-#define ESP32_RX_Pin GPIO_PIN_2
-#define ESP32_RX_GPIO_Port GPIOA
-#define ESP32_TX_Pin GPIO_PIN_3
-#define ESP32_TX_GPIO_Port GPIOA
-#define F429_RX_Pin GPIO_PIN_6
-#define F429_RX_GPIO_Port GPIOC
-#define F429_TX_Pin GPIO_PIN_7
-#define F429_TX_GPIO_Port GPIOC
 #define TMUX_SEL_Pin GPIO_PIN_8
 #define TMUX_SEL_GPIO_Port GPIOC
 #define TMUX_EN__Pin GPIO_PIN_9
 #define TMUX_EN__GPIO_Port GPIOC
-#define G474_RX_Pin GPIO_PIN_9
-#define G474_RX_GPIO_Port GPIOA
-#define G474_TX_Pin GPIO_PIN_10
-#define G474_TX_GPIO_Port GPIOA
 #define NRST_Pin GPIO_PIN_10
 #define NRST_GPIO_Port GPIOC
 #define SWCLK_Pin GPIO_PIN_11

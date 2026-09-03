@@ -10,12 +10,11 @@ extern "C" {
 
 typedef enum
 {
-    TARGET_NONE = 0,
-    TARGET_G474,
-    TARGET_F429
+    TARGET_G474 = 1,
+    TARGET_F429 = 2
 } target_t;
 
-/** Initialize target routing and leave SWD disconnected. */
+/** Initialize target routing with F429 selected and SWD idle. */
 void Target_Init(void);
 
 /** Switch to the selected target through the Target Manager safe sequence. */
@@ -26,6 +25,9 @@ target_t Target_Get(void);
 
 /** Assert and release the selected target reset using non-routing GPIO only. */
 void Target_Reset(void);
+
+/** Reset each routed target once during probe startup, then select F429. */
+void Target_ResetAllAtStartup(void);
 
 /** Detect whether the selected target has a valid VTREF. */
 bool Target_Detect(void);

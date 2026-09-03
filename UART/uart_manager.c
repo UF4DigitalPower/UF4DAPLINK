@@ -32,6 +32,19 @@ static uint8_t s_f429_tx_storage[UART_TARGET_TX_RING_BUFFER_SIZE];
 static uint8_t s_esp32_rx_storage[UART_ESP32_RX_RING_BUFFER_SIZE];
 static uint8_t s_esp32_tx_storage[UART_ESP32_TX_RING_BUFFER_SIZE];
 
+static uint32_t UART_EnterCritical(void)
+{
+    uint32_t primask = __get_PRIMASK();
+
+    __disable_irq();
+    return primask;
+}
+
+static void UART_ExitCritical(uint32_t primask)
+{
+    __set_PRIMASK(primask);
+}
+
 static uart_bridge_id_t UART_IdFromHandle(UART_HandleTypeDef *huart, bool *ok)
 {
     for (uint8_t i = 0u; i < UART_BRIDGE_COUNT; i++) {
@@ -77,7 +90,8 @@ static void UART_StoreRxDmaSpan(uart_bridge_t *bridge, size_t start, size_t end)
     bridge->stats.uart_rx_dropped += (uint32_t)(len - written);
 }
 
-static void UART_CaptureRxDmaUntil(uart_bridge_t *bridge, size_t pos)
+/* Caller holds the UART manager critical section. */
+static void UART_CaptureRxDmaUntilLocked(uart_bridge_t *bridge, size_t pos)
 {
     if ((bridge->huart == 0) || !bridge->rx_running || (pos > UART_RX_DMA_BUFFER_SIZE)) {
         return;
@@ -100,11 +114,22 @@ static void UART_CaptureRxDmaUntil(uart_bridge_t *bridge, size_t pos)
     }
 }
 
+static void UART_CaptureRxDmaUntil(uart_bridge_t *bridge, size_t pos)
+{
+    uint32_t primask = UART_EnterCritical();
+
+    UART_CaptureRxDmaUntilLocked(bridge, pos);
+    UART_ExitCritical(primask);
+}
+
 static void UART_CaptureRxDma(uart_bridge_t *bridge)
 {
     size_t pos;
+    uint32_t primask;
 
+    primask = UART_EnterCritical();
     if ((bridge->huart == 0) || (bridge->huart->hdmarx == 0) || !bridge->rx_running) {
+        UART_ExitCritical(primask);
         return;
     }
 
@@ -113,7 +138,8 @@ static void UART_CaptureRxDma(uart_bridge_t *bridge)
         pos = 0u;
     }
 
-    UART_CaptureRxDmaUntil(bridge, pos);
+    UART_CaptureRxDmaUntilLocked(bridge, pos);
+    UART_ExitCritical(primask);
 }
 
 static void UART_StartRx(uart_bridge_t *bridge)
@@ -132,11 +158,12 @@ static void UART_StartRx(uart_bridge_t *bridge)
 
 static void UART_ClearQueues(uart_bridge_t *bridge)
 {
-    __disable_irq();
+    uint32_t primask = UART_EnterCritical();
+
     RingBuffer_Init(&bridge->rx_ring, bridge->rx_storage, bridge->rx_storage_size);
     RingBuffer_Init(&bridge->tx_ring, bridge->tx_storage, bridge->tx_storage_size);
     bridge->tx_busy = false;
-    __enable_irq();
+    UART_ExitCritical(primask);
 }
 
 static void UART_PumpTx(uart_bridge_t *bridge)
@@ -207,47 +234,63 @@ void UART_Manager_Task(void)
 size_t UART_Manager_WriteFromUsb(uart_bridge_id_t id, const uint8_t *data, size_t len)
 {
     size_t written;
+    uint32_t primask;
 
     if (id >= UART_BRIDGE_COUNT) {
         return 0u;
     }
 
+    primask = UART_EnterCritical();
     written = RingBuffer_Write(&s_uart[id].tx_ring, data, len);
     s_uart[id].stats.usb_to_uart_bytes += (uint32_t)written;
     s_uart[id].stats.usb_to_uart_dropped += (uint32_t)(len - written);
+    UART_ExitCritical(primask);
     return written;
 }
 
 size_t UART_Manager_ReadForUsb(uart_bridge_id_t id, uint8_t *data, size_t len)
 {
     size_t read;
+    uint32_t primask;
 
     if (id >= UART_BRIDGE_COUNT) {
         return 0u;
     }
 
+    primask = UART_EnterCritical();
     read = RingBuffer_Read(&s_uart[id].rx_ring, data, len);
     s_uart[id].stats.usb_from_uart_bytes += (uint32_t)read;
+    UART_ExitCritical(primask);
     return read;
 }
 
 size_t UART_Manager_PeekForUsb(uart_bridge_id_t id, const uint8_t **data)
 {
+    size_t len;
+    uint32_t primask;
+
     if ((id >= UART_BRIDGE_COUNT) || (data == 0)) {
         return 0u;
     }
 
-    return RingBuffer_PeekLinear(&s_uart[id].rx_ring, data);
+    primask = UART_EnterCritical();
+    len = RingBuffer_PeekLinear(&s_uart[id].rx_ring, data);
+    UART_ExitCritical(primask);
+    return len;
 }
 
 void UART_Manager_ConsumeForUsb(uart_bridge_id_t id, size_t len)
 {
+    uint32_t primask;
+
     if (id >= UART_BRIDGE_COUNT) {
         return;
     }
 
+    primask = UART_EnterCritical();
     RingBuffer_Drop(&s_uart[id].rx_ring, len);
     s_uart[id].stats.usb_from_uart_bytes += (uint32_t)len;
+    UART_ExitCritical(primask);
 }
 
 bool UART_Manager_SetBaudRate(uart_bridge_id_t id, uint32_t baud_rate)

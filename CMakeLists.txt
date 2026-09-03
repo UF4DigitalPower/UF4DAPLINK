@@ -19,9 +19,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 11)
 
 #Uncomment for hardware floating point
-#add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING)
-#add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
-#add_link_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
+add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING)
+add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
+add_link_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
 
 #Uncomment for software floating point
 #add_compile_options(-mfloat-abi=soft)
@@ -51,47 +51,46 @@ endif ()
 
 include_directories(
         Core/Inc
+        BSP
+        DAP
+        ESP32
+        UART
+        USB
+        Config
+        third_party/CMSIS-DAP/Firmware/Include
+        third_party/tinyusb-0.21.0/src
+        third_party/tinyusb-0.21.0/src/class/cdc
+        third_party/tinyusb-0.21.0/src/class/hid
+        third_party/tinyusb-0.21.0/src/common
+        third_party/tinyusb-0.21.0/src/device
+        third_party/tinyusb-0.21.0/src/portable/synopsys/dwc2
         Drivers/STM32F4xx_HAL_Driver/Inc
         Drivers/STM32F4xx_HAL_Driver/Inc/Legacy
         Drivers/CMSIS/Device/ST/STM32F4xx/Include
-        Drivers/CMSIS/Include
-        BSP
-        Config
-        DAP
-        USB
-        UART
-        ESP32
-        third_party/CMSIS-DAP/Firmware/Include
-        third_party/tinyusb-0.21.0/src
-)
+        Drivers/CMSIS/Include)
 
-add_definitions(-DDEBUG -DUSE_HAL_DRIVER -DSTM32F401xC -DCFG_TUD_DWC2_SLAVE_ENABLE=1)
+add_definitions(-DDEBUG -DUSE_HAL_DRIVER -DSTM32F401xC)
 
 file(GLOB_RECURSE SOURCES
         "Core/*.*"
         "Drivers/*.*"
         "BSP/*.*"
         "DAP/*.*"
-        "USB/*.*"
-        "UART/*.*"
         "ESP32/*.*"
-)
-
-set(TINYUSB_SOURCES
-        third_party/tinyusb-0.21.0/src/tusb.c
-        third_party/tinyusb-0.21.0/src/common/tusb_fifo.c
-        third_party/tinyusb-0.21.0/src/device/usbd.c
-        third_party/tinyusb-0.21.0/src/class/cdc/cdc_device.c
-        third_party/tinyusb-0.21.0/src/class/hid/hid_device.c
-        third_party/tinyusb-0.21.0/src/portable/synopsys/dwc2/dcd_dwc2.c
-        third_party/tinyusb-0.21.0/src/portable/synopsys/dwc2/dwc2_common.c
-)
+        "UART/*.*"
+        "USB/*.*"
+        "Config/*.*")
 
 list(APPEND SOURCES
-        ${TINYUSB_SOURCES}
+        third_party/tinyusb-0.21.0/src/tusb.c
+        third_party/tinyusb-0.21.0/src/common/tusb_fifo.c
+        third_party/tinyusb-0.21.0/src/class/cdc/cdc_device.c
+        third_party/tinyusb-0.21.0/src/class/hid/hid_device.c
+        third_party/tinyusb-0.21.0/src/device/usbd.c
+        third_party/tinyusb-0.21.0/src/portable/synopsys/dwc2/dcd_dwc2.c
+        third_party/tinyusb-0.21.0/src/portable/synopsys/dwc2/dwc2_common.c
         third_party/CMSIS-DAP/Firmware/Source/DAP.c
-        third_party/CMSIS-DAP/Firmware/Source/SW_DP.c
-)
+        third_party/CMSIS-DAP/Firmware/Source/SW_DP.c)
 
 set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/STM32F401RCTX_FLASH.ld)
 

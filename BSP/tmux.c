@@ -13,7 +13,7 @@ static bool TMUX_Write(GPIO_PinState sel0, GPIO_PinState sel1, GPIO_PinState ena
 
 void TMUX_Init(void)
 {
-    (void)TMUX_SelectNone();
+    (void)TMUX_SelectF429();
 }
 
 bool TMUX_SelectNone(void)
@@ -34,8 +34,6 @@ bool TMUX_SelectF429(void)
 bool TMUX_Select(target_t target)
 {
     switch (target) {
-    case TARGET_NONE:
-        return TMUX_SelectNone();
     case TARGET_G474:
         return TMUX_SelectG474();
     case TARGET_F429:

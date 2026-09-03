@@ -11,6 +11,8 @@
 .\uf4-target.exe set g474
 .\uf4-target.exe esp32-boot
 .\uf4-target.exe esp32-reset
+.\uf4-target.exe vtref
+.\uf4-target.exe adc
 .\uf4-target.exe pins --swclk 1 --swdio 1 --nrst 1
 .\uf4-target.exe probe-idcode --target f429 --clock-khz 100 --repeat 3
 ```
@@ -30,6 +32,7 @@ C:\OpenOCD\bin\openocd.exe -f interface/cmsis-dap.cfg -f target/stm32f4x.cfg -c 
 - `set g474`: route SWD and target UART to G474.
 - `esp32-boot`: pull ESP32 BOOT low and reset it into download mode.
 - `esp32-reset`: reset ESP32 back to normal run mode.
+- `vtref` / `adc`: read the PA4 target reference voltage after 1/2-divider compensation.
 - `pins`: manually read or drive SWCLK, SWDIO, and NRST for hardware checks.
 - `probe-idcode`: run raw SWD initialization and read the target DP IDCODE.
 

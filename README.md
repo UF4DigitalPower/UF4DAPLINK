@@ -13,8 +13,8 @@ PC 这边看到的是一个 USB 复合设备：一个 CMSIS-DAP HID，加两个 
 - USB 上枚举 CMSIS-DAP HID，给 OpenOCD、pyOCD、Keil、STM32CubeProgrammer 这类工具用。
 - 通过 TMUX1574 切 SWD 目标，目前是 G474 和 F429 两路。
 - USB CDC 开 2 路：CDC0 跟着当前目标在 G474/F429 UART 之间切换，CDC1 固定接 ESP32 UART。
-- 通过 CMSIS-DAP vendor command 控制目标选择、ESP32 BOOT/EN、LED、版本读取等。
-- 管 STM32F401 自己板上的几根控制脚：LED、ESP32 BOOT/EN、目标 NRST、TMUX SEL/EN#。
+- 通过 CMSIS-DAP vendor command 控制目标选择、ESP32 串口下载/复位、LED、版本读取等。
+- 管 STM32F401 自己板上的几根控制脚：LED、ESP32 IO8/IO9/EN、目标 NRST、TMUX SEL/EN#。
 
 ### 引脚
 
@@ -24,8 +24,8 @@ PC 这边看到的是一个 USB 复合设备：一个 CMSIS-DAP HID，加两个 
 | F401 自身 SWD | PA13 / PA14 | 烧录和调试这个 DAPLink 固件 |
 | 目标 NRST/SWCLK/SWDIO/SWO | PC10 / PC11 / PC12 / PC13 | 接到 TMUX1574 公共 D 侧 |
 | TMUX SEL / EN# | PC8 / PC9 | EN# 低有效 |
-| LED | PC0 | 状态灯 |
-| ESP32 BOOT / EN | PA0 / PA1 | ESP32 下载和复位控制 |
+| LED | PC4 | 状态灯 |
+| ESP32 IO8 / IO9 / EN | PC1 / PC2 / PC3 | ESP32-C6 串口下载和复位控制 |
 | ESP32 UART | PA2 / PA3 | USART2 |
 | G474 UART | PA9 / PA10 | USART1 |
 | F429 UART | PC6 / PC7 | USART6 |
@@ -71,6 +71,7 @@ PC 端不需要看到多个 DAP。它只看到一个 CMSIS-DAP 设备，目标�
 .\tools\uf4-target\uf4-target.exe set g474
 .\tools\uf4-target\uf4-target.exe esp32-boot
 .\tools\uf4-target\uf4-target.exe esp32-reset
+.\tools\uf4-target\uf4-target.exe vtref
 .\tools\uf4-target\uf4-target.exe probe-idcode --target f429 --clock-khz 100 --repeat 3
 ```
 
@@ -93,7 +94,7 @@ gcc -O2 -Wall -Wextra -o tools\uf4-target\uf4-target.exe tools\uf4-target\uf4-ta
 | GET_TARGET | 0x81 | `[0x81]` | `[0x81, status, target]` | 读取当前目标 |
 | ESP32_BOOT | 0x82 | `[0x82]` | `[0x82, status]` | ESP32 进入下载模式 |
 | ESP32_RESET | 0x83 | `[0x83]` | `[0x83, status]` | 复位 ESP32 |
-| GET_VTREF | 0x84 | `[0x84]` | `[0x84, status, lo, hi]` | 读取目标电压，占位实现 |
+| GET_VTREF | 0x84 | `[0x84]` | `[0x84, status, lo, hi]` | 读取目标电压，按 1/2 分压换算 |
 | SET_LED | 0x85 | `[0x85, state]` | `[0x85, status]` | 设置 LED |
 | GET_VERSION | 0x86 | `[0x86]` | `[0x86, status, major, minor, patch]` | 读取固件版本 |
 | GET_BOARD_INFO | 0x87 | `[0x87]` | `[0x87, status, ...name]` | 读取板卡名称 |
@@ -169,8 +170,8 @@ On the PC side it enumerates as one USB composite device: CMSIS-DAP HID plus two
 - Enumerates a CMSIS-DAP HID interface for OpenOCD, pyOCD, Keil, STM32CubeProgrammer, and similar tools.
 - Switches the target SWD bus through TMUX1574. The current targets are G474 and F429.
 - Exposes two USB CDC ports: CDC0 follows the selected G474/F429 target UART, and CDC1 is fixed to the ESP32 UART.
-- Uses CMSIS-DAP vendor commands for target selection, ESP32 BOOT/EN control, LED control, version query, and board info.
-- Drives board-level signals such as LED, ESP32 BOOT/EN, target NRST, and TMUX SEL/EN#.
+- Uses CMSIS-DAP vendor commands for target selection, ESP32 serial download/reset control, LED control, version query, and board info.
+- Drives board-level signals such as LED, ESP32 IO8/IO9/EN, target NRST, and TMUX SEL/EN#.
 
 ### Pins
 
@@ -180,8 +181,8 @@ On the PC side it enumerates as one USB composite device: CMSIS-DAP HID plus two
 | F401 self SWD | PA13 / PA14 | Programming/debugging this DAPLink firmware |
 | Target NRST/SWCLK/SWDIO/SWO | PC10 / PC11 / PC12 / PC13 | Routed to the TMUX1574 common D side |
 | TMUX SEL / EN# | PC8 / PC9 | EN# is active low |
-| LED | PC0 | Status LED |
-| ESP32 BOOT / EN | PA0 / PA1 | ESP32 download/reset control |
+| LED | PC4 | Status LED |
+| ESP32 IO8 / IO9 / EN | PC1 / PC2 / PC3 | ESP32-C6 serial download/reset control |
 | ESP32 UART | PA2 / PA3 | USART2 |
 | G474 UART | PA9 / PA10 | USART1 |
 | F429 UART | PC6 / PC7 | USART6 |
@@ -249,7 +250,7 @@ gcc -O2 -Wall -Wextra -o tools\uf4-target\uf4-target.exe tools\uf4-target\uf4-ta
 | GET_TARGET | 0x81 | `[0x81]` | `[0x81, status, target]` | Read selected target |
 | ESP32_BOOT | 0x82 | `[0x82]` | `[0x82, status]` | Put ESP32 into download mode |
 | ESP32_RESET | 0x83 | `[0x83]` | `[0x83, status]` | Reset ESP32 |
-| GET_VTREF | 0x84 | `[0x84]` | `[0x84, status, lo, hi]` | Read target voltage, placeholder implementation |
+| GET_VTREF | 0x84 | `[0x84]` | `[0x84, status, lo, hi]` | Read target voltage, with 1/2 divider compensation |
 | SET_LED | 0x85 | `[0x85, state]` | `[0x85, status]` | Set LED |
 | GET_VERSION | 0x86 | `[0x86]` | `[0x86, status, major, minor, patch]` | Read firmware version |
 | GET_BOARD_INFO | 0x87 | `[0x87]` | `[0x87, status, ...name]` | Read board name |
@@ -263,6 +264,12 @@ Target IDs:
 ```
 
 Command IDs are defined in `DAP/vendor_cmd.h`. After selecting `G474`, SWD and CDC0 point to G474. After selecting `F429`, SWD and CDC0 switch to F429 together. CDC1 does not follow target selection; it always stays on ESP32.
+
+For ESP32-C6 flashing, use CDC1 as the serial port. `esptool` can toggle DTR/RTS on that port and the firmware maps them to `GPIO9` and `EN` automatically:
+
+```powershell
+esptool.py --chip esp32c6 --port COMx write-flash 0x0 firmware.bin
+```
 
 ### Common Config Files
 

@@ -45,25 +45,24 @@ void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, LED_Pin|TMUX_SEL_Pin|SWCLK_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, ESP32_IO8_Pin|ESP32_IO9_Pin|ESP32_EN_Pin|LED_Pin
+                          |TMUX_EN__Pin|SWCLK_Pin
+                          |SWDIO_Pin, GPIO_PIN_RESET);
 
-  /* USER CODE BEGIN MX_GPIO_Init_Output_Level */
-  HAL_GPIO_WritePin(GPIOC, TMUX_EN__Pin|NRST_Pin|SWDIO_Pin, GPIO_PIN_SET);
-  /* USER CODE END MX_GPIO_Init_Output_Level */
+  /* Default target is F429; release NRST before enabling its open-drain output. */
+  HAL_GPIO_WritePin(GPIOC, TMUX_SEL_Pin|NRST_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, ESP32BOOT_Pin|ESP32_EN_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin : SWO_Pin */
-  GPIO_InitStruct.Pin = SWO_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  /*Configure GPIO pins : ESP32_IO8_Pin ESP32_IO9_Pin ESP32_EN_Pin */
+  GPIO_InitStruct.Pin = ESP32_IO8_Pin|ESP32_IO9_Pin|ESP32_EN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(SWO_GPIO_Port, &GPIO_InitStruct);
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LED_Pin TMUX_SEL_Pin TMUX_EN__Pin SWCLK_Pin
                            SWDIO_Pin */
@@ -74,17 +73,10 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : ESP32BOOT_Pin ESP32_EN_Pin */
-  GPIO_InitStruct.Pin = ESP32BOOT_Pin|ESP32_EN_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
   /*Configure GPIO pin : NRST_Pin */
   GPIO_InitStruct.Pin = NRST_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(NRST_GPIO_Port, &GPIO_InitStruct);
 
