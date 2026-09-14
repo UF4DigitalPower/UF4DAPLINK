@@ -2,6 +2,8 @@
 
 一句话：这是运行在 UF4 STM32F401 上的 CMSIS-DAP + 双 CDC 桥接固件，用一个 USB 口完成 G474/F429 目标烧录调试、目标串口随动切换和 ESP32 独立串口/下载控制。
 
+项目详情：[博客文章](https://me.hepi.ng/blog/UF4DP2/)
+
 ## 中文
 
 这个固件跑在 UF4 上位控制板的 STM32F401RCT6 上。它夹在 PC 和板上的 G474、F429、ESP32 中间，负责调试、串口和一些板级控制。
@@ -71,7 +73,9 @@ PC 端不需要看到多个 DAP。它只看到一个 CMSIS-DAP 设备，目标�
 .\tools\uf4-target\uf4-target.exe set g474
 .\tools\uf4-target\uf4-target.exe esp32-boot
 .\tools\uf4-target\uf4-target.exe esp32-reset
+.\tools\uf4-target\uf4-target.exe reset
 .\tools\uf4-target\uf4-target.exe vtref
+.\tools\uf4-target\uf4-target.exe vref-adc
 .\tools\uf4-target\uf4-target.exe probe-idcode --target f429 --clock-khz 100 --repeat 3
 ```
 
@@ -98,6 +102,7 @@ gcc -O2 -Wall -Wextra -o tools\uf4-target\uf4-target.exe tools\uf4-target\uf4-ta
 | SET_LED | 0x85 | `[0x85, state]` | `[0x85, status]` | 设置 LED |
 | GET_VERSION | 0x86 | `[0x86]` | `[0x86, status, major, minor, patch]` | 读取固件版本 |
 | GET_BOARD_INFO | 0x87 | `[0x87]` | `[0x87, status, ...name]` | 读取板卡名称 |
+| RESET_ALL | 0x8B | `[0x8B]` | `[0x8B, status]` | 依次拉低复位 G474 和 F429，最后选通 F429 |
 
 目标 ID：
 
@@ -228,6 +233,9 @@ The repository includes a native C Windows helper:
 .\tools\uf4-target\uf4-target.exe set g474
 .\tools\uf4-target\uf4-target.exe esp32-boot
 .\tools\uf4-target\uf4-target.exe esp32-reset
+.\tools\uf4-target\uf4-target.exe reset
+.\tools\uf4-target\uf4-target.exe vtref
+.\tools\uf4-target\uf4-target.exe vref-adc
 .\tools\uf4-target\uf4-target.exe probe-idcode --target f429 --clock-khz 100 --repeat 3
 ```
 
@@ -254,6 +262,7 @@ gcc -O2 -Wall -Wextra -o tools\uf4-target\uf4-target.exe tools\uf4-target\uf4-ta
 | SET_LED | 0x85 | `[0x85, state]` | `[0x85, status]` | Set LED |
 | GET_VERSION | 0x86 | `[0x86]` | `[0x86, status, major, minor, patch]` | Read firmware version |
 | GET_BOARD_INFO | 0x87 | `[0x87]` | `[0x87, status, ...name]` | Read board name |
+| RESET_ALL | 0x8B | `[0x8B]` | `[0x8B, status]` | Pulse reset on G474 and F429, then select F429 |
 
 Target IDs:
 
