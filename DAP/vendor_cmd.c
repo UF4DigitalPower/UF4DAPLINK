@@ -31,6 +31,7 @@ static uint16_t VendorCmd_RequestLength(uint8_t cmd, uint16_t packet_len)
     case UF4_CMD_GET_VTREF:
     case UF4_CMD_GET_VERSION:
     case UF4_CMD_GET_BOARD_INFO:
+    case UF4_CMD_RESET_ALL:
         return 1u;
     default:
         return packet_len;
@@ -88,6 +89,10 @@ uint16_t VendorCmd_Process(const uint8_t *request, uint16_t request_len, uint8_t
         response[3] = (uint8_t)(mv >> 8u);
         return 4u;
     }
+
+    case UF4_CMD_RESET_ALL:
+        Target_ResetAll();
+        return 2u;
 
     case UF4_CMD_SET_LED:
         if (request_len < 2u) {

@@ -108,7 +108,7 @@ int main(void)
   Board_Init();
   DAP_Init();
   HAL_Delay(1000);
-  Target_ResetAllAtStartup();
+  Target_ResetAll();
   CDC_Bridge_Init();
   DAP_HID_Init();
   tusb_init();

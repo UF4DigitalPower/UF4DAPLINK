@@ -26,8 +26,8 @@ target_t Target_Get(void);
 /** Assert and release the selected target reset using non-routing GPIO only. */
 void Target_Reset(void);
 
-/** Reset each routed target once during probe startup, then select F429. */
-void Target_ResetAllAtStartup(void);
+/** Reset each routed target once, then leave F429 selected. */
+void Target_ResetAll(void);
 
 /** Detect whether the selected target has a valid VTREF. */
 bool Target_Detect(void);

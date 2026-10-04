@@ -22,6 +22,7 @@
 #define CMD_GET_UART_STATS          0x88
 #define CMD_CLEAR_UART_STATS        0x89
 #define CMD_GET_UART_RX_SAMPLE      0x8A
+#define CMD_RESET_ALL               0x8B
 #define CMD_DAP_CONNECT             0x02
 #define CMD_DAP_TRANSFER_CONFIGURE  0x04
 #define CMD_DAP_TRANSFER            0x05
@@ -52,7 +53,9 @@ static void usage(void)
     puts("uf4-target set <g474|f429|1|2>");
     puts("uf4-target esp32-boot");
     puts("uf4-target esp32-reset");
+    puts("uf4-target reset");
     puts("uf4-target vtref");
+    puts("uf4-target vref-adc");
     puts("uf4-target adc");
     puts("uf4-target uart-stats <g474|f429|esp32>");
     puts("uf4-target uart-clear-stats <g474|f429|esp32>");
@@ -396,6 +399,11 @@ static int cmd_esp32_reset(uf4_hid_t *dev)
     return 1;
 }
 
+static int cmd_reset_all(uf4_hid_t *dev)
+{
+    return cmd_simple_status(dev, CMD_RESET_ALL, "G474 and F429 reset");
+}
+
 static int cmd_vtref(uf4_hid_t *dev)
 {
     uint8_t req[] = { CMD_GET_VTREF };
@@ -685,7 +693,9 @@ int main(int argc, char **argv)
         ok = cmd_esp32_boot(&dev);
     } else if (strcmp(argv[1], "esp32-reset") == 0 || strcmp(argv[1], "reset-esp32") == 0) {
         ok = cmd_esp32_reset(&dev);
-    } else if (strcmp(argv[1], "vtref") == 0 || strcmp(argv[1], "adc") == 0) {
+    } else if (strcmp(argv[1], "reset") == 0 || strcmp(argv[1], "reset-all") == 0) {
+        ok = cmd_reset_all(&dev);
+    } else if (strcmp(argv[1], "vtref") == 0 || strcmp(argv[1], "vref-adc") == 0 || strcmp(argv[1], "adc") == 0) {
         ok = cmd_vtref(&dev);
     } else if (strcmp(argv[1], "uart-stats") == 0 || strcmp(argv[1], "esp32-stats") == 0) {
         uint8_t id = UART_ID_ESP32;

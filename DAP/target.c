@@ -60,7 +60,7 @@ void Target_Reset(void)
     PIN_nRESET_OUT(1U);
 }
 
-void Target_ResetAllAtStartup(void)
+void Target_ResetAll(void)
 {
     (void)Target_Select(TARGET_G474);
     Target_Reset();

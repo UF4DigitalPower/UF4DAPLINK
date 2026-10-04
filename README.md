@@ -92,17 +92,17 @@ C:\OpenOCD\bin\openocd.exe -f interface/cmsis-dap.cfg -f target/stm32f4x.cfg -c 
 gcc -O2 -Wall -Wextra -o tools\uf4-target\uf4-target.exe tools\uf4-target\uf4-target.c -lsetupapi -lhid
 ```
 
-| 命令 | ID | 请求 | 响应 | 说明 |
-| --- | --- | --- | --- | --- |
-| SET_TARGET | 0x80 | `[0x80, target]` | `[0x80, status]` | 切换目标 |
-| GET_TARGET | 0x81 | `[0x81]` | `[0x81, status, target]` | 读取当前目标 |
-| ESP32_BOOT | 0x82 | `[0x82]` | `[0x82, status]` | ESP32 进入下载模式 |
-| ESP32_RESET | 0x83 | `[0x83]` | `[0x83, status]` | 复位 ESP32 |
-| GET_VTREF | 0x84 | `[0x84]` | `[0x84, status, lo, hi]` | 读取目标电压，按 1/2 分压换算 |
-| SET_LED | 0x85 | `[0x85, state]` | `[0x85, status]` | 设置 LED |
-| GET_VERSION | 0x86 | `[0x86]` | `[0x86, status, major, minor, patch]` | 读取固件版本 |
-| GET_BOARD_INFO | 0x87 | `[0x87]` | `[0x87, status, ...name]` | 读取板卡名称 |
-| RESET_ALL | 0x8B | `[0x8B]` | `[0x8B, status]` | 依次拉低复位 G474 和 F429，最后选通 F429 |
+| 命令             | ID   | 请求               | 响应                                    | 说明                           |
+|----------------|------|------------------|---------------------------------------|------------------------------|
+| SET_TARGET     | 0x80 | `[0x80, target]` | `[0x80, status]`                      | 切换目标                         |
+| GET_TARGET     | 0x81 | `[0x81]`         | `[0x81, status, target]`              | 读取当前目标                       |
+| ESP32_BOOT     | 0x82 | `[0x82]`         | `[0x82, status]`                      | ESP32 进入下载模式                 |
+| ESP32_RESET    | 0x83 | `[0x83]`         | `[0x83, status]`                      | 复位 ESP32                     |
+| GET_VTREF      | 0x84 | `[0x84]`         | `[0x84, status, lo, hi]`              | 读取目标电压，按 1/2 分压换算            |
+| SET_LED        | 0x85 | `[0x85, state]`  | `[0x85, status]`                      | 设置 LED                       |
+| GET_VERSION    | 0x86 | `[0x86]`         | `[0x86, status, major, minor, patch]` | 读取固件版本                       |
+| GET_BOARD_INFO | 0x87 | `[0x87]`         | `[0x87, status, ...name]`             | 读取板卡名称                       |
+| RESET_ALL      | 0x8B | `[0x8B]`         | `[0x8B, status]`                      | 依次拉低复位 G474 和 F429，最后选通 F429 |
 
 目标 ID：
 
@@ -180,17 +180,17 @@ On the PC side it enumerates as one USB composite device: CMSIS-DAP HID plus two
 
 ### Pins
 
-| Function | STM32F401 pins | Notes |
-| --- | --- | --- |
-| USB FS DM/DP | PA11 / PA12 | TinyUSB device |
-| F401 self SWD | PA13 / PA14 | Programming/debugging this DAPLink firmware |
-| Target NRST/SWCLK/SWDIO/SWO | PC10 / PC11 / PC12 / PC13 | Routed to the TMUX1574 common D side |
-| TMUX SEL / EN# | PC8 / PC9 | EN# is active low |
-| LED | PC4 | Status LED |
-| ESP32 IO8 / IO9 / EN | PC1 / PC2 / PC3 | ESP32-C6 serial download/reset control |
-| ESP32 UART | PA2 / PA3 | USART2 |
-| G474 UART | PA9 / PA10 | USART1 |
-| F429 UART | PC6 / PC7 | USART6 |
+| Function                    | STM32F401 pins            | Notes                                       |
+|-----------------------------|---------------------------|---------------------------------------------|
+| USB FS DM/DP                | PA11 / PA12               | TinyUSB device                              |
+| F401 self SWD               | PA13 / PA14               | Programming/debugging this DAPLink firmware |
+| Target NRST/SWCLK/SWDIO/SWO | PC10 / PC11 / PC12 / PC13 | Routed to the TMUX1574 common D side        |
+| TMUX SEL / EN#              | PC8 / PC9                 | EN# is active low                           |
+| LED                         | PC4                       | Status LED                                  |
+| ESP32 IO8 / IO9 / EN        | PC1 / PC2 / PC3           | ESP32-C6 serial download/reset control      |
+| ESP32 UART                  | PA2 / PA3                 | USART2                                      |
+| G474 UART                   | PA9 / PA10                | USART1                                      |
+| F429 UART                   | PC6 / PC7                 | USART6                                      |
 
 TMUX1574 selection:
 
