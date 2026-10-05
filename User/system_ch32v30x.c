@@ -4,7 +4,7 @@
 * Version            : V1.0.0
 * Date               : 2024/03/06
 * Description        : CH32V30x Device Peripheral Access Layer System Source File.
-*                      For HSE = 8Mhz
+*                      Board adaptation: HSE (external 8 MHz), SYSCLK = 144 MHz.
 *********************************************************************************
 * Copyright (c) 2021 Nanjing Qinheng Microelectronics Co., Ltd.
 * Attention: This software (modified or not) and binary are used for 
@@ -21,9 +21,9 @@
 //#define SYSCLK_FREQ_48MHz_HSE  48000000
 //#define SYSCLK_FREQ_56MHz_HSE  56000000
 //#define SYSCLK_FREQ_72MHz_HSE  72000000
-#define SYSCLK_FREQ_96MHz_HSE  96000000
+//#define SYSCLK_FREQ_96MHz_HSE  96000000
 //#define SYSCLK_FREQ_120MHz_HSE  120000000
-//#define SYSCLK_FREQ_144MHz_HSE  144000000
+#define SYSCLK_FREQ_144MHz_HSE  144000000
 //#define SYSCLK_FREQ_HSI    HSI_VALUE
 //#define SYSCLK_FREQ_48MHz_HSI  48000000
 //#define SYSCLK_FREQ_56MHz_HSI  56000000
@@ -734,6 +734,7 @@ static void SetSysClockTo144_HSE(void)
     RCC->CFGR0 |= (uint32_t)RCC_PPRE1_DIV2;
 
     /*  PLL configuration: PLLCLK = HSE * 18 = 144 MHz */
+
     RCC->CFGR0 &= (uint32_t)((uint32_t)~(RCC_PLLSRC | RCC_PLLXTPRE |
                                         RCC_PLLMULL));
 
@@ -745,17 +746,26 @@ static void SetSysClockTo144_HSE(void)
 
     /* Enable PLL */
     RCC->CTLR |= RCC_PLLON;
-    /* Wait till PLL is ready */
-    while((RCC->CTLR & RCC_PLLRDY) == 0)
+    /* Wait till PLL is ready - BOUNDED: a wrong HSE must never hang the MCU */
+    StartUpCounter = 0;
+    while( ( ( RCC->CTLR & RCC_PLLRDY ) == 0 ) && ( StartUpCounter < 0x000FFFFF ) )
     {
+        StartUpCounter++;
     }
-    /* Select PLL as system clock source */
-    RCC->CFGR0 &= (uint32_t)((uint32_t)~(RCC_SW));
-    RCC->CFGR0 |= (uint32_t)RCC_SW_PLL;
-    /* Wait till PLL is used as system clock source */
-    while ((RCC->CFGR0 & (uint32_t)RCC_SWS) != (uint32_t)0x08)
+    if( ( RCC->CTLR & RCC_PLLRDY ) != 0 )
     {
+        /* Select PLL as system clock source */
+        RCC->CFGR0 &= (uint32_t)((uint32_t)~(RCC_SW));
+        RCC->CFGR0 |= (uint32_t)RCC_SW_PLL;
+        /* Wait till PLL is used as system clock source - bounded as well */
+        StartUpCounter = 0;
+        while( ( ( RCC->CFGR0 & (uint32_t)RCC_SWS ) != (uint32_t)0x08 ) && ( StartUpCounter < 0x000FFFFF ) )
+        {
+            StartUpCounter++;
+        }
     }
+    /* If the PLL never locked we deliberately stay on HSI so that the LED
+     * self test in main() can report the fault instead of hanging here. */
   }
   else
   {
@@ -1000,6 +1010,8 @@ static void SetSysClockTo120_HSI(void)
  */
 static void SetSysClockTo144_HSI(void)
 {
+    __IO uint32_t StartUpCounter = 0;
+
     EXTEN->EXTEN_CTR |= EXTEN_PLL_HSI_PRE;
 
     /* HCLK = SYSCLK */
@@ -1020,16 +1032,20 @@ static void SetSysClockTo144_HSI(void)
 
     /* Enable PLL */
     RCC->CTLR |= RCC_PLLON;
-    /* Wait till PLL is ready */
-    while((RCC->CTLR & RCC_PLLRDY) == 0)
+    /* Wait till PLL is ready - BOUNDED */
+    StartUpCounter = 0;
+    while( ( ( RCC->CTLR & RCC_PLLRDY ) == 0 ) && ( StartUpCounter < 0x000FFFFF ) )
     {
+        StartUpCounter++;
     }
     /* Select PLL as system clock source */
     RCC->CFGR0 &= (uint32_t)((uint32_t)~(RCC_SW));
     RCC->CFGR0 |= (uint32_t)RCC_SW_PLL;
-    /* Wait till PLL is used as system clock source */
-    while ((RCC->CFGR0 & (uint32_t)RCC_SWS) != (uint32_t)0x08)
+    /* Wait till PLL is used as system clock source - BOUNDED */
+    StartUpCounter = 0;
+    while( ( ( RCC->CFGR0 & (uint32_t)RCC_SWS ) != (uint32_t)0x08 ) && ( StartUpCounter < 0x000FFFFF ) )
     {
+        StartUpCounter++;
     }
 }
 

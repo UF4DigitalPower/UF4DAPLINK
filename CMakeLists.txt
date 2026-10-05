@@ -86,7 +86,6 @@ endif()
 file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS
         "${CMAKE_SOURCE_DIR}/User/*.c"
         "${CMAKE_SOURCE_DIR}/User/*.cpp"
-        "${CMAKE_SOURCE_DIR}/User/*.cc"
         "${CMAKE_SOURCE_DIR}/Peripheral/*.c"
         "${CMAKE_SOURCE_DIR}/Debug/*.c"
         "${CMAKE_SOURCE_DIR}/Core/*.c")
@@ -99,6 +98,8 @@ if(NOT EXISTS "${LINK_SCRIPT}")
 endif()
 
 # ---------- 可执行目标 ----------
+option(USBHS_FORCE_FULL_SPEED "Use USBHS PHY at 12 Mbps for enumeration diagnostics" OFF)
+
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${STARTUP_ASM})
 
 # 让输出文件是 DAPLINK.elf（target 名保持 DAPLINK）
@@ -108,17 +109,20 @@ target_include_directories(${PROJECT_NAME} PRIVATE
         "${CMAKE_SOURCE_DIR}/Debug"
         "${CMAKE_SOURCE_DIR}/Core"
         "${CMAKE_SOURCE_DIR}/User"
+        "${CMAKE_SOURCE_DIR}/User/UART"
+        "${CMAKE_SOURCE_DIR}/User/USB_Device"
         "${CMAKE_SOURCE_DIR}/Peripheral/inc"
         "${CMAKE_SOURCE_DIR}/Startup")
 
-target_compile_options(${PROJECT_NAME} PRIVATE
-        ${ARCH_FLAGS}
-        ${COMMON_FLAGS}
-        ${OPT_FLAGS})
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+        CH32V30x_D8C
+        HSE_VALUE=8000000U
+        $<$<BOOL:${USBHS_FORCE_FULL_SPEED}>:USBHS_FORCE_FULL_SPEED>
+        $<$<BOOL:${USBHS_USE_HSI}>:USBHS_USE_HSI>)
 
-set_source_files_properties(${STARTUP_ASM} PROPERTIES
-        LANGUAGE        ASM
-        COMPILE_OPTIONS "-x;assembler-with-cpp")
+target_compile_options(${PROJECT_NAME} PRIVATE ${ARCH_FLAGS} ${COMMON_FLAGS} ${OPT_FLAGS})
+
+set_source_files_properties(${STARTUP_ASM} PROPERTIES LANGUAGE ASM COMPILE_OPTIONS "-x;assembler-with-cpp")
 
 target_link_options(${PROJECT_NAME} PRIVATE
         ${ARCH_FLAGS}

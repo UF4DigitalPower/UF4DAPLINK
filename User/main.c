@@ -12,21 +12,48 @@
 
 /*
  *@Note
- USART Print debugging routine:
- USART1_Tx(PA9).
- This example demonstrates using USART1(PA9) as a print debug port output.
+ * USBHS CDC virtual serial port. Received data is echoed back internally:
+ * an EP2 OUT packet is copied into the EP2 IN buffer and returned to the host.
+ *
+ * Clock: SYSCLK = HSE (external 8 MHz) * 18 = 144 MHz.
+ *        USBHS PHY reference = HSE / 2 = 4 MHz.
+ *
+ * Dual-color LED on PB15 (low = color 1, high = color 2, high-Z = off):
+ *   off           -> no USB event yet
+ *   color 1       -> USB bus reset seen, no SETUP yet
+ *   color 2       -> CDC enumerated
+ *   color 1 blink -> SETUP seen, enumeration in progress
+ *   color 2 blink -> clock fault, HardFault or NMI
+ */
 
-*/
-
+#include "UART.h"
 #include "debug.h"
+#include "ch32v30x_usbhs_device.h"
+#include "board_led.h"
 
+static void LED_Indicate( UF4_LED_Color color, uint8_t blink )
+{
+    UF4_LED_Set( color );
+    if( blink )
+    {
+        Delay_Ms( 250 );
+        UF4_LED_Set( UF4_LED_OFF );
+        Delay_Ms( 250 );
+    }
+    else
+    {
+        Delay_Ms( 50 );
+    }
+}
 
-/* Global typedef */
-
-/* Global define */
-
-/* Global Variable */
-
+static void IWDG_SoftwareInit( void )
+{
+    IWDG_WriteAccessCmd( IWDG_WriteAccess_Enable );
+    IWDG_SetPrescaler( IWDG_Prescaler_32 );
+    IWDG_SetReload( 4000 );
+    IWDG_ReloadCounter( );
+    IWDG_Enable( );
+}
 
 /*********************************************************************
  * @fn      main
@@ -37,18 +64,62 @@
  */
 int main(void)
 {
-	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
-	SystemCoreClockUpdate();
-	Delay_Init();
-	USART_Printf_Init(115200);	
-	printf("SystemClk:%d\r\n",SystemCoreClock);
-	printf( "ChipID:%08x\r\n", DBGMCU_GetCHIPID() );
-	printf("This is printf example\r\n");
+    uint8_t clock_fault;
 
+    SystemCoreClockUpdate( );
+    Delay_Init( );
+    UF4_LED_Init( );
 
-	while(1)
+    /* Clock self test, read straight from the RCC registers. */
+    clock_fault = 0;
+    if( ( RCC->CTLR & RCC_HSERDY ) == 0 )
     {
+        clock_fault |= 0x01;                                    /* HSE not ready */
+    }
+    if( ( RCC->CTLR & RCC_PLLRDY ) == 0 )
+    {
+        clock_fault |= 0x02;                                    /* PLL never locked */
+    }
+    if( ( RCC->CFGR0 & RCC_SWS ) != RCC_SWS_PLL )
+    {
+        clock_fault |= 0x04;                                    /* not running from PLL */
+    }
+    if( ( RCC->CFGR0 & RCC_PLLSRC ) != RCC_PLLSRC_HSE )
+    {
+        clock_fault |= 0x08;                                    /* PLL not sourced from HSE */
+    }
 
-	}
+    /* Start the watchdog before USB initialization. */
+    IWDG_SoftwareInit( );
+
+    RCC_Configuration( );
+    UART2_ParaInit( 1 );
+    USBHS_RCC_Init( );
+    USBHS_Device_Init( ENABLE );
+
+    while(1)
+    {
+        IWDG_ReloadCounter( );
+
+        if( ( clock_fault != 0 ) || ( USBHS_HseFail != 0 ) )
+        {
+            LED_Indicate( UF4_LED_COLOR2, 1 );
+        }
+        else if( USBHS_DevEnumStatus != 0 )
+        {
+            LED_Indicate( UF4_LED_COLOR2, 0 );
+        }
+        else if( USBHS_SetupCnt != 0 )
+        {
+            LED_Indicate( UF4_LED_COLOR1, 1 );
+        }
+        else if( USBHS_BusResetCnt != 0 )
+        {
+            LED_Indicate( UF4_LED_COLOR1, 0 );
+        }
+        else
+        {
+            LED_Indicate( UF4_LED_OFF, 0 );
+        }
+    }
 }
-
