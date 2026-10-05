@@ -13,7 +13,7 @@
 /*
  *@Note
  * USBHS CDC virtual serial port. Received data is echoed back internally:
- * an EP2 OUT packet is copied into the EP2 IN buffer and returned to the host.
+ * EP2 OUT DMA packets are queued and returned through EP2 IN without copying.
  *
  * Clock: SYSCLK = HSE (external 8 MHz) * 18 = 144 MHz.
  *        USBHS PHY reference = HSE / 2 = 4 MHz.
@@ -30,19 +30,29 @@
 #include "debug.h"
 #include "ch32v30x_usbhs_device.h"
 #include "board_led.h"
+#include "usbhs_echo.h"
+
+static void LED_Wait( uint16_t milliseconds )
+{
+    while( milliseconds-- )
+    {
+        Delay_Ms( 1 );
+        USBHS_Echo_Poll( );
+    }
+}
 
 static void LED_Indicate( UF4_LED_Color color, uint8_t blink )
 {
     UF4_LED_Set( color );
     if( blink )
     {
-        Delay_Ms( 250 );
+        LED_Wait( 250 );
         UF4_LED_Set( UF4_LED_OFF );
-        Delay_Ms( 250 );
+        LED_Wait( 250 );
     }
     else
     {
-        Delay_Ms( 50 );
+        LED_Wait( 50 );
     }
 }
 

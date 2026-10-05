@@ -98,7 +98,7 @@ if(NOT EXISTS "${LINK_SCRIPT}")
 endif()
 
 # ---------- 可执行目标 ----------
-option(USBHS_FORCE_FULL_SPEED "Use USBHS PHY at 12 Mbps for enumeration diagnostics" OFF)
+#option(USBHS_FORCE_FULL_SPEED "Use USBHS PHY at 12 Mbps for enumeration diagnostics" OFF)
 
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${STARTUP_ASM})
 
@@ -128,6 +128,7 @@ target_link_options(${PROJECT_NAME} PRIVATE
         ${ARCH_FLAGS}
         -nostartfiles
         -T ${LINK_SCRIPT}
+        -T ${CMAKE_SOURCE_DIR}/usbhs_dma.ld
         --specs=nano.specs
         --specs=nosys.specs
         -Wl,--gc-sections
