@@ -12,8 +12,8 @@
 
 /*
  *@Note
- * USBHS CDC virtual serial port. Received data is echoed back internally:
- * EP2 OUT DMA packets are queued and returned through EP2 IN without copying.
+ * USBHS composite device: three CDC ACM serial ports plus a CMSIS-DAP/WebUSB
+ * vendor interface. The CDC ports are wired to USART1, USART3 and UART8.
  *
  * Clock: SYSCLK = HSE (external 8 MHz) * 18 = 144 MHz.
  *        USBHS PHY reference = HSE / 2 = 4 MHz.
