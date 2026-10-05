@@ -630,6 +630,23 @@ void USBHS_IRQHandler( void )
                                     len = DEF_USBD_SN_DESC_LEN;
                                     break;
 
+                                case 4:
+                                    pUSBHS_Descr = MyCDC1Info;
+                                    len = DEF_USBD_CDC1_DESC_LEN;
+                                    break;
+                                case 6:
+                                    pUSBHS_Descr = MyCDC2Info;
+                                    len = DEF_USBD_CDC2_DESC_LEN;
+                                    break;
+                                case 8:
+                                    pUSBHS_Descr = MyCDC3Info;
+                                    len = DEF_USBD_CDC3_DESC_LEN;
+                                    break;
+                                case 10:
+                                    pUSBHS_Descr = MyDAPInfo;
+                                    len = DEF_USBD_DAP_DESC_LEN;
+                                    break;
+
                                 default:
                                     errflag = 0xFF;
                                     break;

@@ -1,0 +1,60 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>UF4 WebUSB DAP</title>
+<style>body{font:16px system-ui;max-width:720px;margin:40px auto}button{padding:8px 16px}pre{background:#f3f3f3;padding:12px}</style>
+<h1>UF4 WebUSB DAP</h1>
+<p>使用 Chrome/Edge 点击连接，测试 CMSIS-DAP WebUSB 接口。</p>
+<button id="connect">连接 UF4 DAP</button>
+<button id="disconnect" disabled>断开</button>
+<button id="state" disabled>读取状态</button>
+<button id="wifiBoot" disabled>WiFi BOOT 脉冲</button>
+<button id="wifiRst" disabled>WiFi NRST 脉冲</button>
+<button id="g4Rst" disabled>G4 NRST 脉冲</button>
+<pre id="log">未连接</pre>
+<script>
+const log = m => document.querySelector('#log').textContent = m;
+let dev, outEp, inEp;
+async function command(bytes) {
+  await dev.transferOut(outEp, new Uint8Array(bytes));
+  const r = await dev.transferIn(inEp, 64);
+  return new Uint8Array(r.data.buffer, r.data.byteOffset, r.data.byteLength);
+}
+function enableButtons() { ['state','wifiBoot','wifiRst','g4Rst','disconnect'].forEach(id => document.querySelector('#'+id).disabled = false); }
+async function closeDevice() {
+  if (!dev) return;
+  try { if (dev.opened) { try { await dev.releaseInterface(6); } catch (_) {} await dev.close(); } } catch (_) {}
+  dev = undefined;
+  ['state','wifiBoot','wifiRst','g4Rst','disconnect'].forEach(id => document.querySelector('#'+id).disabled = true);
+}
+document.querySelector('#connect').onclick = async () => {
+  if (!navigator.usb) return log('当前浏览器不支持 WebUSB');
+  try {
+    await closeDevice();
+    dev = await navigator.usb.requestDevice({filters:[{vendorId:0x1a86, productId:0xfe0c, classCode:0xff, subclassCode:0x00, protocolCode:0x00}]});
+    await dev.open();
+    if (!dev.configuration) await dev.selectConfiguration(1);
+    let iface = dev.configuration.interfaces.find(x => x.interfaceNumber === 6) ||
+                dev.configuration.interfaces.find(x => x.alternates.some(a => a.interfaceClass === 0xff));
+    if (!iface) throw new Error('找不到 CMSIS-DAP 接口');
+    const alt = iface.alternates.find(a => a.interfaceClass === 0xff) || iface.alternates[0];
+    if (!alt) throw new Error(`接口 ${iface.interfaceNumber} 没有 alternate setting`);
+    await dev.claimInterface(iface.interfaceNumber);
+    outEp = alt.endpoints.find(e => e.direction === 'out').endpointNumber;
+    inEp = alt.endpoints.find(e => e.direction === 'in').endpointNumber;
+    await dev.selectAlternateInterface(iface.interfaceNumber, alt.alternateSetting);
+    const b = await command([0x00, 0x01]);
+    const n = b[1] || 0;
+    enableButtons();
+    log(`已连接：${dev.productName || 'UF4 DAP'}\nDAP_Info Vendor: ${new TextDecoder().decode(b.slice(2, 2+n))}`);
+  } catch (e) {
+    await closeDevice();
+    log(`${e.name}: ${e.message}\n当前页面看到的 USB 配置：${dev && dev.configuration ? dev.configuration.interfaces.map(x => `${x.interfaceNumber}:${x.alternates.map(a => `${a.interfaceClass.toString(16)}/${a.alternateSetting}`).join(',')}`).join(' | ') : '未知'}\n请关闭所有烧录器后重新插拔设备。`);
+  }
+};
+document.querySelector('#disconnect').onclick = async () => { await closeDevice(); log('已断开'); };
+document.querySelector('#state').onclick = async () => { const b = await command([0x80]); log(`控制状态 0x${(b[2]||0).toString(16).padStart(2,'0')}（bit0=G4_NRST，bit1=WiFi_BOOT，bit2=WiFi_NRST）`); };
+async function pulse(bit) { await command([0x81, bit, bit]); await new Promise(r => setTimeout(r, 100)); await command([0x81, bit, 0]); document.querySelector('#state').click(); }
+document.querySelector('#wifiBoot').onclick = () => pulse(2);
+document.querySelector('#wifiRst').onclick = () => pulse(4);
+document.querySelector('#g4Rst').onclick = () => pulse(1);
+</script>

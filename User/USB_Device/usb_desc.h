@@ -67,6 +67,10 @@
 #define DEF_USBD_MANU_DESC_LEN       ((uint16_t)MyManuInfo[0])
 #define DEF_USBD_PROD_DESC_LEN       ((uint16_t)MyProdInfo[0])
 #define DEF_USBD_SN_DESC_LEN         ((uint16_t)MySerNumInfo[0])
+#define DEF_USBD_CDC1_DESC_LEN       ((uint16_t)MyCDC1Info[0])
+#define DEF_USBD_CDC2_DESC_LEN       ((uint16_t)MyCDC2Info[0])
+#define DEF_USBD_CDC3_DESC_LEN       ((uint16_t)MyCDC3Info[0])
+#define DEF_USBD_DAP_DESC_LEN        ((uint16_t)MyDAPInfo[0])
 #define DEF_USBD_QUALFY_DESC_LEN     ((uint16_t)MyQuaDesc[0])
 #define DEF_USBD_BOS_DESC_LEN        ((uint16_t)MyBOSDesc[2] + (uint16_t)(MyBOSDesc[3] << 8))
 #define DEF_USBD_FS_OTH_DESC_LEN     (DEF_USBD_CONFIG_HS_DESC_LEN)
@@ -81,6 +85,10 @@ extern const uint8_t MyLangDescr[ ];
 extern const uint8_t MyManuInfo[ ];
 extern const uint8_t MyProdInfo[ ];
 extern const uint8_t MySerNumInfo[ ];
+extern const uint8_t MyCDC1Info[ ];
+extern const uint8_t MyCDC2Info[ ];
+extern const uint8_t MyCDC3Info[ ];
+extern const uint8_t MyDAPInfo[ ];
 extern const uint8_t MyQuaDesc[ ];
 extern const uint8_t MyBOSDesc[ ];
 extern const uint8_t USB_WebUSB_URL[ ];

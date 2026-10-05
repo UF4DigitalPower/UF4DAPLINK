@@ -1,5 +1,6 @@
 #include "usb_composite.h"
 #include "usb_desc.h"
+#include "swd_spi.h"
 #include <string.h>
 
 #define RING_SIZE 1024u
@@ -88,6 +89,7 @@ static void configure_uart_pins(void) {
 void USBComposite_Init(void) {
     configure_uart_pins();
     for (uint8_t i = 0; i < USB_CDC_COUNT; ++i) uart_apply_line(&cdc[i]);
+    SWD_SPI_Init();
 }
 
 void USBComposite_EndpointInit(void) {
@@ -98,6 +100,86 @@ void USBComposite_EndpointInit(void) {
     USBHSD->UEP5_TX_DMA = (uint32_t)cdc_tx[2];
     USBHSD->UEP6_RX_DMA = (uint32_t)cdc_rx[2]; USBHSD->UEP6_TX_DMA = (uint32_t)cdc_tx[2];
     USBHSD->UEP7_RX_DMA = (uint32_t)dap_rx; USBHSD->UEP7_TX_DMA = (uint32_t)dap_tx;
+}
+
+static uint32_t rd32(const uint8_t *p) {
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+}
+
+static void wr32(uint8_t *p, uint32_t v) {
+    p[0] = (uint8_t)v; p[1] = (uint8_t)(v >> 8); p[2] = (uint8_t)(v >> 16); p[3] = (uint8_t)(v >> 24);
+}
+
+static uint16_t dap_info(const uint8_t *in, uint16_t len) {
+    static const char vendor[] = "UF4 Research";
+    static const char product[] = "UF4 DAPLink";
+    static const char serial[] = "0123456789";
+    const char *s = 0;
+    uint8_t id = (len > 1) ? in[1] : 0;
+    dap_tx[0] = 0x00;
+    if (id == 1) s = vendor; else if (id == 2) s = product; else if (id == 3) s = serial;
+    if (s) {
+        uint8_t n = (uint8_t)strlen(s); dap_tx[1] = n; memcpy(&dap_tx[2], s, n); return (uint16_t)(2 + n);
+    }
+    if (id == 4) {
+        uint16_t packet = USBHS_DevMaxPackLen ? USBHS_DevMaxPackLen : DEF_USBD_HS_PACK_SIZE;
+        dap_tx[1] = 2; dap_tx[2] = (uint8_t)packet; dap_tx[3] = (uint8_t)(packet >> 8); return 4;
+    }
+    if (id == 5) { dap_tx[1] = 3; memcpy(&dap_tx[2], "2.1", 3); return 5; }
+    dap_tx[1] = 0; return 2;
+}
+
+static uint16_t dap_process(const uint8_t *in, uint16_t len) {
+    uint8_t cmd = len ? in[0] : 0xFF;
+    uint8_t ack;
+    uint32_t value;
+    dap_tx[0] = cmd;
+    switch (cmd) {
+        case 0x00: return dap_info(in, len);                    /* DAP_Info */
+        case 0x02:                                               /* DAP_Connect */
+            dap_tx[1] = SWD_SPI_Connect() ? 1 : 0; return 2;
+        case 0x03: dap_tx[1] = 0; return 2;                     /* DAP_Disconnect */
+        case 0x04: dap_tx[1] = 0; return 2;                     /* DAP_TransferConfigure */
+        case 0x05: {                                             /* DAP_Transfer */
+            uint8_t count = (len > 2) ? in[2] : 0, done = 0, ack_all = 1;
+            uint16_t ip = 3, op = 3;
+            for (uint8_t i = 0; i < count && ip < len && op <= (DEF_USBD_HS_PACK_SIZE - 4u); ++i) {
+                uint8_t req = in[ip++];
+                value = 0;
+                if ((req & 2u) == 0u) { if ((uint16_t)(ip + 4) > len) break; value = rd32(&in[ip]); ip += 4; }
+                ack = SWD_SPI_Transfer(req, &value); if (ack != 1u) { ack_all = ack; break; }
+                if (req & 2u) { wr32(&dap_tx[op], value); op += 4; }
+                ++done;
+            }
+            dap_tx[1] = done; dap_tx[2] = ack_all; return op;
+        }
+        case 0x06: {                                             /* DAP_TransferBlock */
+            uint16_t count = (len > 3) ? (uint16_t)in[2] | ((uint16_t)in[3] << 8) : 0, done = 0;
+            uint8_t req = (len > 4) ? in[4] : 0, ack_all = 1;
+            uint16_t ip = 5, op = 5;
+            dap_tx[1] = (len > 1) ? in[1] : 0;
+            for (uint16_t i = 0; i < count && op <= (DEF_USBD_HS_PACK_SIZE - 4u); ++i) {
+                value = 0;
+                if ((req & 2u) == 0u) { if ((uint16_t)(ip + 4) > len) break; value = rd32(&in[ip]); ip += 4; }
+                ack = SWD_SPI_Transfer(req, &value); if (ack != 1u) { ack_all = ack; break; }
+                if (req & 2u) { wr32(&dap_tx[op], value); op += 4; } ++done;
+            }
+            dap_tx[2] = (uint8_t)done; dap_tx[3] = (uint8_t)(done >> 8); dap_tx[4] = ack_all;
+            return op;
+        }
+        case 0x08: dap_tx[1] = 0; return 2;                     /* DAP_TransferAbort */
+        case 0x0A: SWD_SetTargetReset(1); SWD_SetTargetReset(0); dap_tx[1] = 0; return 2;
+        case 0x11: if (len >= 5) SWD_SPI_SetClock(rd32(&in[1])); dap_tx[1] = 0; return 2;
+        case 0x12: if (len >= 2) SWD_SPI_SwjSequence(&in[2], in[1] ? in[1] : 256); dap_tx[1] = 0; return 2;
+        case 0x80: dap_tx[1] = 0; dap_tx[2] = SWD_GetControlState(); return 3;
+        case 0x81:
+            if (len >= 3) { uint8_t mask = in[1], val = in[2]; if (mask & UF4_CTRL_G4_NRST) SWD_SetTargetReset(val & UF4_CTRL_G4_NRST); if (mask & UF4_CTRL_WIFI_BOOT) SWD_SetWifiBoot(val & UF4_CTRL_WIFI_BOOT); if (mask & UF4_CTRL_WIFI_NRST) SWD_SetWifiReset(val & UF4_CTRL_WIFI_NRST); }
+            dap_tx[1] = 0; dap_tx[2] = SWD_GetControlState(); return 3;
+        case 0x82: SWD_SPI_ResetSequence(); dap_tx[1] = 0; return 2;
+        case 0x83: ack = (len >= 2) ? SWD_SPI_Transfer(in[1], &value) : 0; dap_tx[1] = ack; if (len >= 6) wr32(&dap_tx[2], value); return (len >= 6) ? 6 : 2;
+        case 0x84: if (len >= 5) SWD_SPI_SetClock(rd32(&in[1])); dap_tx[1] = 0; return 2;
+        default: dap_tx[1] = 0; return 2;
+    }
 }
 
 void USBComposite_OnOut(uint8_t ep, uint16_t len) {
@@ -112,25 +194,7 @@ void USBComposite_OnOut(uint8_t ep, uint16_t len) {
     }
     if (ep == USB_DAP_EP) {
         const uint8_t *in = USBHSD_UEP_RXBUF(ep);
-        uint16_t out_len = 0;
-        if (len) {
-            uint8_t cmd = in[0];
-            dap_tx[0] = cmd;
-            if (cmd == 0x00 && len >= 2) {
-                static const char vendor[] = "UF4 Research";
-                static const char product[] = "UF4 DAPLink";
-                static const char serial[] = "0123456789";
-                uint8_t id = in[1]; const char *s = 0;
-                if (id == 1) s = vendor; else if (id == 2) s = product; else if (id == 3) s = serial;
-                if (s) { uint8_t l = (uint8_t)strlen(s); dap_tx[1] = l; memcpy(&dap_tx[2], s, l); out_len = (uint16_t)(2 + l); }
-                else if (id == 4) { uint16_t packet = USBHS_DevMaxPackLen ? USBHS_DevMaxPackLen : DEF_USBD_HS_PACK_SIZE; dap_tx[1] = 2; dap_tx[2] = (uint8_t)packet; dap_tx[3] = (uint8_t)(packet >> 8); out_len = 4; }
-                else if (id == 5) { dap_tx[1] = 3; memcpy(&dap_tx[2], "2.1", 3); out_len = 5; }
-                else { dap_tx[1] = 0; out_len = 2; }
-            } else if (cmd == 0x02) { dap_tx[1] = 1; out_len = 2; }
-            else if (cmd == 0x03 || cmd == 0x04 || cmd == 0x1A) { dap_tx[1] = 0; out_len = 2; }
-            else if (cmd == 0x05) { dap_tx[1] = 0; out_len = 2; }
-            else { dap_tx[1] = 0; out_len = 2; }
-        }
+        uint16_t out_len = dap_process(in, len);
         if (out_len) USBHS_Endp_DataUp(USB_DAP_EP, dap_tx, out_len, DEF_UEP_DMA_LOAD);
         USBHSD_UEP_RXDMA(ep) = (uint32_t)dap_rx;
         USBHSD_UEP_RXCTRL(ep) ^= USBHS_UEP_R_TOG_DATA1;

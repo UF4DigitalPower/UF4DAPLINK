@@ -101,7 +101,6 @@ int main(void)
 
     /* Start the watchdog before USB initialization. */
     IWDG_SoftwareInit( );
-
     RCC_Configuration( );
     USBComposite_Init( );
     USBHS_RCC_Init( );
