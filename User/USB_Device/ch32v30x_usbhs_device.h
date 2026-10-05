@@ -118,7 +118,6 @@ extern volatile uint8_t  USBHS_SpeedAtReset;
 
 /* Endpoint Buffer */
 extern __attribute__ ((aligned(4))) uint8_t USBHS_EP0_Buf[ ];
-extern __attribute__ ((aligned(4))) uint8_t USBHS_EP3_Tx_Buf[ ];
 
 /********************************************************************************/
 /* Function Declaration */

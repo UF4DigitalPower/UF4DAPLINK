@@ -30,14 +30,14 @@
 #include "debug.h"
 #include "ch32v30x_usbhs_device.h"
 #include "board_led.h"
-#include "usbhs_echo.h"
+#include "usb_composite.h"
 
 static void LED_Wait( uint16_t milliseconds )
 {
     while( milliseconds-- )
     {
         Delay_Ms( 1 );
-        USBHS_Echo_Poll( );
+        USBComposite_Poll( );
     }
 }
 
@@ -103,7 +103,7 @@ int main(void)
     IWDG_SoftwareInit( );
 
     RCC_Configuration( );
-    UART2_ParaInit( 1 );
+    USBComposite_Init( );
     USBHS_RCC_Init( );
     USBHS_Device_Init( ENABLE );
 

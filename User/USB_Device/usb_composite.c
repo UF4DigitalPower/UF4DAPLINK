@@ -37,7 +37,6 @@ static uint8_t ep_to_cdc(uint8_t ep) {
     return 0xFF;
 }
 
-static uint8_t cdc_out_ep(uint8_t n) { return (uint8_t)(CDC1_OUT_EP + n * 2u); }
 static uint8_t cdc_in_ep(uint8_t n)  { return (uint8_t)(CDC1_OUT_EP + n * 2u); }
 
 static uint16_t ring_count(volatile uint16_t head, volatile uint16_t tail) {
@@ -107,6 +106,7 @@ void USBComposite_OnOut(uint8_t ep, uint16_t len) {
         CDC_PORT *p = &cdc[n];
         ring_put(p, USBHSD_UEP_RXBUF(ep), len);
         USBHSD_UEP_RXDMA(ep) = (uint32_t)p->rx_usb;
+        USBHSD_UEP_RXCTRL(ep) ^= USBHS_UEP_R_TOG_DATA1;
         USBHSD_UEP_RXCTRL(ep) = (USBHSD_UEP_RXCTRL(ep) & ~USBHS_UEP_R_RES_MASK) | USBHS_UEP_R_RES_ACK;
         return;
     }
@@ -123,8 +123,8 @@ void USBComposite_OnOut(uint8_t ep, uint16_t len) {
                 uint8_t id = in[1]; const char *s = 0;
                 if (id == 1) s = vendor; else if (id == 2) s = product; else if (id == 3) s = serial;
                 if (s) { uint8_t l = (uint8_t)strlen(s); dap_tx[1] = l; memcpy(&dap_tx[2], s, l); out_len = (uint16_t)(2 + l); }
-                else if (id == 4) { dap_tx[1] = 2; dap_tx[2] = (uint8_t)DEF_USBD_HS_PACK_SIZE; dap_tx[3] = (uint8_t)(DEF_USBD_HS_PACK_SIZE >> 8); out_len = 4; }
-                else if (id == 5) { dap_tx[1] = 4; memcpy(&dap_tx[2], "2.1", 4); out_len = 6; }
+                else if (id == 4) { uint16_t packet = USBHS_DevMaxPackLen ? USBHS_DevMaxPackLen : DEF_USBD_HS_PACK_SIZE; dap_tx[1] = 2; dap_tx[2] = (uint8_t)packet; dap_tx[3] = (uint8_t)(packet >> 8); out_len = 4; }
+                else if (id == 5) { dap_tx[1] = 3; memcpy(&dap_tx[2], "2.1", 3); out_len = 5; }
                 else { dap_tx[1] = 0; out_len = 2; }
             } else if (cmd == 0x02) { dap_tx[1] = 1; out_len = 2; }
             else if (cmd == 0x03 || cmd == 0x04 || cmd == 0x1A) { dap_tx[1] = 0; out_len = 2; }
@@ -132,7 +132,8 @@ void USBComposite_OnOut(uint8_t ep, uint16_t len) {
             else { dap_tx[1] = 0; out_len = 2; }
         }
         if (out_len) USBHS_Endp_DataUp(USB_DAP_EP, dap_tx, out_len, DEF_UEP_DMA_LOAD);
-        USBHSD_UEP_RXDMA(ep) = (uint32_t)USBHSD_UEP_RXBUF(ep);
+        USBHSD_UEP_RXDMA(ep) = (uint32_t)dap_rx;
+        USBHSD_UEP_RXCTRL(ep) ^= USBHS_UEP_R_TOG_DATA1;
         USBHSD_UEP_RXCTRL(ep) = (USBHSD_UEP_RXCTRL(ep) & ~USBHS_UEP_R_RES_MASK) | USBHS_UEP_R_RES_ACK;
     }
 }
@@ -195,6 +196,6 @@ uint8_t USBComposite_VendorRequest(uint8_t request_type, uint8_t request, uint16
                                    uint16_t index, uint16_t length, const uint8_t **data, uint16_t *data_len) {
     if ((request_type & USB_REQ_TYP_MASK) != USB_REQ_TYP_VENDOR || !(request_type & DEF_UEP_IN)) return 0;
     if (request == 0x22 && index == 0x0002 && value == 1) { *data = USB_WebUSB_URL; *data_len = (length < USB_WebUSB_URL[0]) ? length : USB_WebUSB_URL[0]; return 1; }
-    if (request == 0x21 && index == 0x0007) { *data = USB_MS_OS_20_Desc; *data_len = (length < sizeof(USB_MS_OS_20_Desc)) ? length : sizeof(USB_MS_OS_20_Desc); return 1; }
+    if (request == 0x21 && index == 0x0007) { *data = USB_MS_OS_20_Desc; *data_len = (length < 46) ? length : 46; return 1; }
     return 0;
 }

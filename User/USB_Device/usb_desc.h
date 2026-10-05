@@ -44,6 +44,7 @@
 #define DEF_USB_EP4_HS_SIZE          DEF_USBD_HS_PACK_SIZE
 #define DEF_USB_EP5_HS_SIZE          DEF_USBD_HS_PACK_SIZE
 #define DEF_USB_EP6_HS_SIZE          DEF_USBD_HS_PACK_SIZE
+#define DEF_USB_EP7_HS_SIZE          DEF_USBD_HS_PACK_SIZE
 /* FS end-point size */
 #define DEF_USB_EP1_FS_SIZE          DEF_USBD_FS_PACK_SIZE
 #define DEF_USB_EP2_FS_SIZE          DEF_USBD_FS_PACK_SIZE
@@ -51,6 +52,7 @@
 #define DEF_USB_EP4_FS_SIZE          DEF_USBD_FS_PACK_SIZE
 #define DEF_USB_EP5_FS_SIZE          DEF_USBD_FS_PACK_SIZE
 #define DEF_USB_EP6_FS_SIZE          DEF_USBD_FS_PACK_SIZE
+#define DEF_USB_EP7_FS_SIZE          DEF_USBD_FS_PACK_SIZE
 /* LS end-point size */
 /* ... */
 

@@ -89,6 +89,7 @@ file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS
         "${CMAKE_SOURCE_DIR}/Peripheral/*.c"
         "${CMAKE_SOURCE_DIR}/Debug/*.c"
         "${CMAKE_SOURCE_DIR}/Core/*.c")
+list(FILTER SRC_FILES EXCLUDE REGEX "/usbhs_echo\\.c$")
 
 set(STARTUP_ASM ${CMAKE_SOURCE_DIR}/Startup/startup_ch32v30x_D8C.S)
 set(LINK_SCRIPT ${CMAKE_SOURCE_DIR}/CH32V30XRCT6.ld)
