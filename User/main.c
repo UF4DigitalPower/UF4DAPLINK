@@ -105,7 +105,6 @@ int main(void)
     USBComposite_Init( );
     USBHS_RCC_Init( );
     USBHS_Device_Init( ENABLE );
-
     while(1)
     {
         IWDG_ReloadCounter( );
